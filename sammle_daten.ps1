@@ -24,14 +24,14 @@ function WienDatum($unixSekunden) {
   return $lokal.ToString("yyyy-MM-dd")
 }
 
-function MitWiederholung([scriptblock]$aktion, [string]$beschreibung) {
+function MitWiederholung([scriptblock]$aktion, [string]$beschreibung, [int]$versuche = 3, [int]$timeoutSek = 45) {
   $letzterFehler = $null
-  for ($versuch = 1; $versuch -le 3; $versuch++) {
-    try { return & $aktion }
+  for ($versuch = 1; $versuch -le $versuche; $versuch++) {
+    try { return & $aktion $timeoutSek }
     catch {
       $letzterFehler = $_
       Write-Output "Versuch $versuch fehlgeschlagen ($beschreibung): $($_.Exception.Message)"
-      if ($versuch -lt 3) { Start-Sleep -Seconds (10 * $versuch) }
+      if ($versuch -lt $versuche) { Start-Sleep -Seconds (8 * $versuch) }
     }
   }
   throw $letzterFehler
@@ -41,8 +41,12 @@ function HoleAPGTag($datumIso) {
   $start = $datumIso + "T000000"
   $ende = ([DateTime]::ParseExact($datumIso, "yyyy-MM-dd", $null)).AddDays(1).ToString("yyyy-MM-dd") + "T000000"
   $uri = "https://transparency.apg.at/api/v1/EXAAD1P/Data/German/PT15M/$start/$ende/EXAA_Full?p_exaaMode=EXAA_Full&resolution=PT15M"
-  return MitWiederholung -beschreibung "APG $datumIso" -aktion {
-    $resp = Invoke-WebRequest -Uri $uri -UseBasicParsing -TimeoutSec 45
+  # Nur 2 kurze Versuche: GitHub-Runner erreichen die APG manchmal nur langsam/gar nicht;
+  # bei Fehlschlag uebernimmt HoleTagMitFallback() sofort Energy-Charts als Ausweichquelle,
+  # statt lange auf APG zu warten.
+  return MitWiederholung -beschreibung "APG $datumIso" -versuche 2 -timeoutSek 25 -aktion {
+    param($timeoutSek)
+    $resp = Invoke-WebRequest -Uri $uri -UseBasicParsing -TimeoutSec $timeoutSek
     $daten = $resp.Content | ConvertFrom-Json
     $ergebnis = @()
     foreach ($row in $daten.ResponseData.ValueRows) {
@@ -55,9 +59,36 @@ function HoleAPGTag($datumIso) {
   }
 }
 
+# Ausweichquelle, falls APG nicht rechtzeitig antwortet: Energy-Charts liefert denselben
+# Market-Coupling-Auktionspreis (siehe server.ps1 der lokalen Version, stichprobenartig
+# als wertgleich geprueft). Die API liefert nur ein rollendes Zeitfenster (kein Datumsfilter),
+# darum hier selbst auf den gewuenschten Kalendertag (Wien-Zeit) filtern.
+function HoleEnergyChartsTag($datumIso) {
+  return MitWiederholung -beschreibung "Energy-Charts $datumIso" -versuche 2 -timeoutSek 30 -aktion {
+    param($timeoutSek)
+    $resp = Invoke-WebRequest -Uri 'https://api.energy-charts.info/price?bzn=AT' -UseBasicParsing -TimeoutSec $timeoutSek
+    $daten = $resp.Content | ConvertFrom-Json
+    $ergebnis = @()
+    for ($i = 0; $i -lt $daten.unix_seconds.Count; $i++) {
+      if ((WienDatum $daten.unix_seconds[$i]) -ne $datumIso) { continue }
+      $ergebnis += [PSCustomObject]@{ unix = $daten.unix_seconds[$i]; preis = $daten.price[$i] }
+    }
+    return ,$ergebnis
+  }
+}
+function HoleTagMitFallback($datumIso) {
+  try { return @{ werte = (HoleAPGTag $datumIso); quelle = "APG" } }
+  catch {
+    Write-Output "APG endgueltig fehlgeschlagen fuer $datumIso, versuche Energy-Charts als Ausweichquelle..."
+    try { return @{ werte = (HoleEnergyChartsTag $datumIso); quelle = "Energy-Charts" } }
+    catch { throw }
+  }
+}
+
 function HoleErzeugung {
   return MitWiederholung -beschreibung "Energy-Charts Erzeugungsmix" -aktion {
-    $resp = Invoke-WebRequest -Uri 'https://api.energy-charts.info/public_power?country=at' -UseBasicParsing -TimeoutSec 45
+    param($timeoutSek)
+    $resp = Invoke-WebRequest -Uri 'https://api.energy-charts.info/public_power?country=at' -UseBasicParsing -TimeoutSec $timeoutSek
     $daten = $resp.Content | ConvertFrom-Json
     $n = $daten.unix_seconds.Count
     $ergebnis = @()
@@ -108,16 +139,17 @@ $jetztWien = [System.TimeZoneInfo]::ConvertTimeFromUtc([DateTime]::UtcNow, $wien
 foreach ($offset in 0, 1) {
   $datumIso = $jetztWien.AddDays($offset).ToString("yyyy-MM-dd")
   try {
-    $werte = HoleAPGTag $datumIso
+    $ergebnis = HoleTagMitFallback $datumIso
+    $werte = $ergebnis.werte
     if ($werte.Count -ge 90) {
       $mittel = [Math]::Round((($werte | ForEach-Object { $_.preis } | Measure-Object -Average).Average), 2)
-      $preisTage[$datumIso] = [PSCustomObject]@{ datum = $datumIso; n = $werte.Count; mittelEurMwh = $mittel; werte = $werte }
-      Write-Output "Preise gespeichert: $datumIso ($($werte.Count) Viertelstunden, Mittel $mittel EUR/MWh)"
+      $preisTage[$datumIso] = [PSCustomObject]@{ datum = $datumIso; n = $werte.Count; mittelEurMwh = $mittel; quelle = $ergebnis.quelle; werte = $werte }
+      Write-Output "Preise gespeichert: $datumIso ($($werte.Count) Viertelstunden, Mittel $mittel EUR/MWh, Quelle $($ergebnis.quelle))"
     } else {
-      Write-Output "Preise fuer $datumIso noch nicht (vollstaendig) verfuegbar ($($werte.Count) Werte) -- kein Fehler, naechster Lauf versucht es erneut."
+      Write-Output "Preise fuer $datumIso noch nicht (vollstaendig) verfuegbar ($($werte.Count) Werte von $($ergebnis.quelle)) -- kein Fehler, naechster Lauf versucht es erneut."
     }
   } catch {
-    Write-Output "Fehler beim Preisabruf fuer $datumIso`: $($_.Exception.Message) -- bestehender Eintrag bleibt unveraendert."
+    Write-Output "Fehler beim Preisabruf fuer $datumIso (APG und Energy-Charts)`: $($_.Exception.Message) -- bestehender Eintrag bleibt unveraendert."
   }
 }
 SchreibeArchiv $preisDatei $preisTage "APG Transparency (Market Coupling Auktionspreis), https://transparency.apg.at"
