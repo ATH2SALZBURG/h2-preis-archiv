@@ -103,6 +103,32 @@
     </div>
   </div>
 
+  <h2>Strompreise, Viertelstunde für Viertelstunde</h2>
+  <div class="tabs">
+    <button id="tab-heute" class="aktiv">Heute</button>
+    <button id="tab-morgen" disabled>Morgen</button>
+  </div>
+  <div class="chartbox" style="position:relative">
+    <svg id="chart" viewBox="0 0 960 300" preserveAspectRatio="xMidYMid meet"></svg>
+    <div id="tooltip"></div>
+  </div>
+  <div class="legende">
+    <span><i class="linie"></i> Strompreis (Cent/kWh)</span>
+    <span><i class="flaeche"></i> Anlage läuft</span>
+    <span><i class="streifen"></i> Niedrigpreis (Art 6 Abs 3)</span>
+    <span><i class="gestrichelt"></i> Niedrigpreis-Schwelle</span>
+    <span><i class="jetzt"></i> jetzt</span>
+  </div>
+  <p class="hinweis" id="chart-hinweis">Die grün hinterlegten Zeiten sind die günstigsten Viertelstunden des Tages – genau dann läuft die Anlage.</p>
+  <details>
+    <summary>Werte als Tabelle anzeigen</summary>
+    <table class="tabelle" id="tabelle"><thead><tr><th>Zeit</th><th>Preis EUR/MWh</th><th>Anlage</th><th>Niedrigpreis (Art 6 Abs 3)</th></tr></thead><tbody></tbody></table>
+  </details>
+
+  <h2>Woraus sich der Preis zusammensetzt</h2>
+  <div class="zeile"><span>heute</span><div class="balken" id="k-balken"></div><span id="k-balken-summe"></span></div>
+  <div class="legende" id="k-legende"></div>
+
   <h2>Einordnung: ist das viel oder wenig?</h2>
   <div class="kacheln">
     <div class="kachel">
@@ -147,7 +173,7 @@
     <div id="tooltip-sparkline" class="tooltip-mini"></div>
   </div>
   <div class="chartbox" id="e-fossil-box" style="display:none; padding:10px 14px 4px; margin-top:10px; position:relative;">
-    <div class="chart-titel">Wasserstoffpreis pro erfasstem Tag in €/kg</div>
+    <div class="chart-titel">Wasserstoffpreis heute pro erfasstem Tag (EUR/kg, dieselbe Zahl wie oben "1 kg Wasserstoff kostet heute")</div>
     <svg id="e-fossil-chart" viewBox="0 0 600 150" preserveAspectRatio="xMidYMid meet"></svg>
     <div id="tooltip-fossil" class="tooltip-mini"></div>
     <div class="legende">
@@ -179,32 +205,6 @@
         Version der Hypothese H1 der Arbeit und wird unten als "Vorteil des preisorientierten Betriebs" angezeigt.</li>
     </ol>
   </div>
-
-  <h2>Strompreise, Viertelstunde für Viertelstunde</h2>
-  <div class="tabs">
-    <button id="tab-heute" class="aktiv">Heute</button>
-    <button id="tab-morgen" disabled>Morgen</button>
-  </div>
-  <div class="chartbox" style="position:relative">
-    <svg id="chart" viewBox="0 0 960 300" preserveAspectRatio="xMidYMid meet"></svg>
-    <div id="tooltip"></div>
-  </div>
-  <div class="legende">
-    <span><i class="linie"></i> Strompreis (Cent/kWh)</span>
-    <span><i class="flaeche"></i> Anlage läuft</span>
-    <span><i class="streifen"></i> Niedrigpreis (Art 6 Abs 3)</span>
-    <span><i class="gestrichelt"></i> Niedrigpreis-Schwelle</span>
-    <span><i class="jetzt"></i> jetzt</span>
-  </div>
-  <p class="hinweis" id="chart-hinweis">Die grün hinterlegten Zeiten sind die günstigsten Viertelstunden des Tages – genau dann läuft die Anlage.</p>
-  <details>
-    <summary>Werte als Tabelle anzeigen</summary>
-    <table class="tabelle" id="tabelle"><thead><tr><th>Zeit</th><th>Preis EUR/MWh</th><th>Anlage</th><th>Niedrigpreis (Art 6 Abs 3)</th></tr></thead><tbody></tbody></table>
-  </details>
-
-  <h2>Woraus sich der Preis zusammensetzt</h2>
-  <div class="zeile"><span>heute</span><div class="balken" id="k-balken"></div><span id="k-balken-summe"></span></div>
-  <div class="legende" id="k-legende"></div>
 
   <p style="margin-top:18px"><button id="refresh">Jetzt aktualisieren</button></p>
 
