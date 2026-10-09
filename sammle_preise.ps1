@@ -20,16 +20,28 @@ function HoleAPGTag($datumIso) {
   $start = $datumIso + "T000000"
   $ende = ([DateTime]::ParseExact($datumIso, "yyyy-MM-dd", $null)).AddDays(1).ToString("yyyy-MM-dd") + "T000000"
   $uri = "https://transparency.apg.at/api/v1/EXAAD1P/Data/German/PT15M/$start/$ende/EXAA_Full?p_exaaMode=EXAA_Full&resolution=PT15M"
-  $resp = Invoke-WebRequest -Uri $uri -UseBasicParsing -TimeoutSec 20
-  $daten = $resp.Content | ConvertFrom-Json
-  $ergebnis = @()
-  foreach ($row in $daten.ResponseData.ValueRows) {
-    $preis = $row.V[3].V   # MCPrice_Chart: Market-Coupling-Auktionspreis (bei Full-Decoupling Referenzpreis)
-    if ($null -eq $preis) { continue }
-    $sek = KonvertiereVienna $row.DF $row.TF
-    $ergebnis += [PSCustomObject]@{ unix = $sek; preis = $preis }
+  # Bis zu 3 Versuche: Cloud-Runner und APG-Server brauchen gelegentlich laenger als
+  # wenige Sekunden (Netzwerk-Latenz), ein einzelner knapper Timeout reicht nicht immer.
+  $letzterFehler = $null
+  for ($versuch = 1; $versuch -le 3; $versuch++) {
+    try {
+      $resp = Invoke-WebRequest -Uri $uri -UseBasicParsing -TimeoutSec 45
+      $daten = $resp.Content | ConvertFrom-Json
+      $ergebnis = @()
+      foreach ($row in $daten.ResponseData.ValueRows) {
+        $preis = $row.V[3].V   # MCPrice_Chart: Market-Coupling-Auktionspreis (bei Full-Decoupling Referenzpreis)
+        if ($null -eq $preis) { continue }
+        $sek = KonvertiereVienna $row.DF $row.TF
+        $ergebnis += [PSCustomObject]@{ unix = $sek; preis = $preis }
+      }
+      return ,$ergebnis
+    } catch {
+      $letzterFehler = $_
+      Write-Output "Versuch $versuch fehlgeschlagen fuer $datumIso`: $($_.Exception.Message)"
+      if ($versuch -lt 3) { Start-Sleep -Seconds (10 * $versuch) }
+    }
   }
-  return ,$ergebnis
+  throw $letzterFehler
 }
 
 $jetztWien = [System.TimeZoneInfo]::ConvertTimeFromUtc([DateTime]::UtcNow, $wienTz)
