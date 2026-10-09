@@ -1,0 +1,30 @@
+name: Day-Ahead-Preise taeglich sammeln
+
+on:
+  schedule:
+    # 21:30 UTC = 23:30 MEZ (Winter) bzw. 22:30 MESZ ohne manuelle Sommerzeitumstellung.
+    # Bewusst spaet am Tag gewaehlt: der gesammelte (gestrige) Tag ist zu dieser Zeit
+    # sicher laengst vollstaendig verfuegbar, auch bei etwas Verzoegerung durch GitHub.
+    - cron: '30 21 * * *'
+  workflow_dispatch: {}   # erlaubt manuellen Start ueber den "Run workflow"-Knopf
+
+permissions:
+  contents: write
+
+jobs:
+  sammeln:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Preise abrufen und in preishistorie.json speichern
+        shell: pwsh
+        run: ./sammle_preise.ps1
+
+      - name: Aenderung committen und pushen
+        run: |
+          git config user.name "Preis-Sammler"
+          git config user.email "actions@users.noreply.github.com"
+          git add preishistorie.json
+          git diff --staged --quiet || git commit -m "Preise aktualisiert ($(date -u +%Y-%m-%d))"
+          git push
