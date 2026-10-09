@@ -1,0 +1,6 @@
+{
+  "erzeugt": "2026-10-09",
+  "modellVersion": "2.0 (01.10.2026, Datenblatt Enapter AEM Nexus 2500)",
+  "hinweis": "Einmalig aus der Masterarbeit (modell.js + daten.js) vorberechnet, siehe fixkostenBasis() in dashboard.html. Bei Aktualisierung des Masterarbeit-Modells muss diese Datei neu erzeugt werden (Jakob/Claude fragen).",
+  "basis": {"jahr":2025,"H_jahr":365000.0000000923,"kappung":1,"K":{"kapital":979956.1066600011,"stack":323593.4889490972,"betrieb":342600,"energie":1326179.5972125123,"entgelteArbeit":515491.5468586094,"leistungspreis":226521.58297986296,"pauschale":60524.03,"wasser":32850.00000000831,"aufpreis":0,"verdEnergie":24319.031108543066,"verdichter":69085.17822924748,"speicher":134796.1106435571},"fixProKg":5.9450041026334945,"jahresmittelCt":9.894424029680552,"H_jahrGleich":364999.9999999973,"KGleich":{"kapital":979956.1066600011,"stack":683750.518718706,"betrieb":342600,"energie":1863151.2448755996,"entgelteArbeit":515491.54685864947,"leistungspreis":120798.59476571428,"pauschale":60524.03,"wasser":32849.99999999976,"aufpreis":0,"verdEnergie":6231.9038706344845,"verdichter":8799.247484183474,"speicher":41620.28538016934},"fixProKgGleich":6.221640501393945}
+}
