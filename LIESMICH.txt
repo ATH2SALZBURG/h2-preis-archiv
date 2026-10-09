@@ -1,0 +1,128 @@
+WASSERSTOFF-DASHBOARD KOMPLETT ONLINE (GitHub Pages + GitHub Actions)
+=======================================================================
+Diese Version laeuft vollstaendig online, unabhaengig von jedem Laptop oder
+lokalen Server: Eine GitHub Action sammelt mehrmals taeglich die Day-Ahead-
+Preise (APG) und den Erzeugungsmix (Energy-Charts) und speichert sie im
+Repository; die Dashboard-Seite (GitHub Pages) liest beim Aufrufen nur noch
+diese Dateien und rechnet im Browser weiter -- kein eigener Server noetig,
+von jedem Geraet jederzeit erreichbar.
+
+Adresse der Seite: https://ath2salzburg.github.io/h2-preis-archiv/dashboard.html
+
+DATEIEN IN DIESEM ORDNER (alle gehoeren ins selbe GitHub-Repository,
+Ordner-Wurzel, NICHT in einen Unterordner -- das Repo h2-preis-archiv passt
+genau)
+  dashboard.html ....... die Seite selbst
+  modell.js ............ Kostenrechnung (Kopie aus der Masterarbeit)
+  fixkosten-basis.json . einmalig vorberechnete Jahresrechnung (Fixkosten);
+                         muss bei einer Aktualisierung des Masterarbeit-
+                         Modells neu erzeugt werden (Jakob/Claude fragen)
+  sammle_daten.ps1 ..... sammelt Preise (APG) und Erzeugungsmix (Energy-
+                         Charts), speichert in preishistorie.json / erzeugung.json
+  preise-sammeln.yml ... gehoert nach .github/workflows/preise-sammeln.yml,
+                         startet sammle_daten.ps1 alle 3 Stunden automatisch
+  sammle_preise.ps1 .... VERALTET, durch sammle_daten.ps1 ersetzt -- im Repo
+                         loeschen, falls noch vorhanden (kein Muss)
+  test\ ................ NUR fuer lokale Tests von Claude/Jakob, NICHT
+                         hochladen (siehe unten "LOKAL TESTEN")
+
+EINRICHTUNG (im bestehenden Repo h2-preis-archiv, alles im Browser)
+  1. Alle Dateien oben (ausser sammle_preise.ps1 und dem Ordner test\) per
+     "Add file" -> "Create new file" mit demselben Dateinamen anlegen und
+     den Inhalt hineinkopieren. Bei einer bereits bestehenden Datei (z. B.
+     einem spaeteren Update) stattdessen die Datei im Repo oeffnen, auf das
+     Stift-Symbol klicken, Inhalt ersetzen, Commit. preise-sammeln.yml
+     gehoert nach .github/workflows/preise-sammeln.yml.
+  2. GitHub Pages aktivieren (nur beim allerersten Einrichten noetig): oben
+     im Repo auf "Settings" -> links "Pages" -> bei "Build and deployment" /
+     "Source" auf "Deploy from a branch" stellen -> Branch "main", Ordner
+     "/ (root)" -> "Save".
+  3. Einmal "Run workflow" bei "Day-Ahead-Preise und Erzeugungsmix sammeln"
+     im Reiter "Actions" von Hand starten, damit preishistorie.json /
+     erzeugung.json sofort entstehen bzw. sich mit dem neuen Skript
+     aktualisieren, statt bis zum naechsten planmaessigen Lauf zu warten.
+     Wichtig: nach einer Aenderung an sammle_daten.ps1 immer "Run workflow"
+     verwenden, nicht "Re-run jobs" -- Letzteres fuehrt den alten Stand aus.
+  4. Danach die Adresse oben im Browser oeffnen (auch am Handy).
+
+WAS DANACH PASSIERT
+  Alle 3 Stunden holt GitHub automatisch aktuelle Preise/Erzeugungsdaten,
+  unabhaengig von jedem Geraet. Die Dashboard-Seite selbst braucht nichts zu
+  tun ausser beim Aufruf die aktuellsten Dateien zu lesen -- auch das ist
+  unabhaengig vom Laptop, da GitHub Pages die Seite dauerhaft bereitstellt.
+
+NEUE FUNKTIONEN (Stand 09.10.2026, zweiter Auftrag)
+  Sammelskript (sammle_daten.ps1):
+  - Holt jetzt zusaetzlich zu heute und morgen auch gestern nach, aber nur
+    falls der gestrige Eintrag fehlt oder noch von der Ausweichquelle
+    Energy-Charts stammt. So werden Ausweichtage spaeter automatisch auf
+    APG nachgezogen, ohne dass ein guter APG-Tag je ueberschrieben wird.
+  - Die Energy-Charts-Abfrage nennt jetzt ausdruecklich das Datum (vorher
+    lieferte sie ohne Datum nur den heutigen Tag und nie "morgen").
+  - Quellenvergleich geprueft (09.10.2026, 96 Viertelstunden): APG
+    (Market-Coupling-Preis) und Energy-Charts sind identisch (0 EUR/MWh
+    Abweichung); der EXAA-Preis (anderer Wert aus derselben APG-Abfrage)
+    weicht am selben Tag bis zu 65 EUR/MWh ab -- bestaetigt, dass die
+    richtige APG-Spalte verwendet wird. Steht auch auf der Seite selbst
+    unter "Technische Details & Quellen".
+
+  Dashboard (dashboard.html):
+  - Ampel unter der Hauptueberschrift: rot = Daten aelter als 6 Stunden
+    oder heutiger Tag unvollstaendig; gelb = nach 14:30 Uhr fehlen die
+    Preise fuer morgen, oder der heutige Tag stammt nur von der
+    Ausweichquelle; gruen = alles aktuell. Quelle je Tag (APG oder
+    Energy-Charts) steht zusaetzlich bei der Viertelstunden-Tabelle und
+    unter "Technische Details & Quellen".
+  - Neuer Abschnitt "Wann die Anlage gelaufen ist": Heatmap ueber alle
+    erfassten Tage (morgen als Prognose oben, falls schon vorhanden),
+    umschaltbar zwischen "Betrieb" (laeuft/steht) und "Strompreis"
+    (helle bis dunkle Farbskala). Zeitumstellungstage werden automatisch
+    richtig behandelt (doppelte Stunde gemittelt, fehlende Stunde grau).
+  - Zwei CSV-Download-Knoepfe unter "Technische Details & Quellen":
+    Tageswerte und Viertelstundenwerte aller erfassten Tage, als Excel-
+    taugliche Datei (Semikolon, Dezimalkomma, UTF-8). Fuer den Anhang der
+    Arbeit oder zum Nachrechnen.
+  - Neue Kachel "Mit Grünstromaufpreis (Untergrenze)": zeigt, um wie viel
+    teurer der heutige Wasserstoffpreis mit einem Grünstromaufpreis von
+    10 bzw. 25 EUR/MWh waere (Bandbreite laut Tabelle 13 der Arbeit) --
+    nur als Untergrenze, da das Modell den Aufpreis eigentlich auf das
+    ganze Vertragsvolumen eines Stromlieferungsvertrags anwendet. Die
+    große Preiskachel oben bleibt davon unberuehrt.
+  - Neuer Adressparameter ?archiv=<Pfad> laedt statt preishistorie.json
+    eine andere Datei -- nur fuer lokale Tests (siehe unten), nicht fuer
+    den normalen Gebrauch.
+
+LOKAL TESTEN (nur fuer Claude/Jakob, nicht Teil der Online-Version)
+  Der Ordner test\ enthaelt lokale Testdateien und einen kleinen
+  PowerShell-Testserver (lokaler_server.ps1, Python ist auf diesem Rechner
+  nicht installiert). Start: lokaler_server.ps1 ausfuehren, dann
+  http://localhost:8744/dashboard.html im Browser oeffnen. Mit z. B.
+  ?archiv=test/preishistorie_dst.json laesst sich die Seite mit
+  Testarchiven statt der echten preishistorie.json pruefen (Ampel-Farben,
+  Zeitumstellungstage). Der ganze Ordner test\ gehoert NICHT ins
+  GitHub-Repository.
+
+UNTERSCHIED ZUR LOKALEN VERSION (..\dashboard.html + server.ps1)
+  Die lokale Version bleibt bestehen und funktioniert weiterhin wie bisher,
+  falls gewuenscht (z. B. fuer schnellere Updates, da sie live statt alle
+  3 Stunden abruft). Die Online-Version hier braucht nichts Lokales mehr,
+  ist dafuer nicht ganz taggenau aktuell (bis zu 3 Stunden Verzug moeglich,
+  steht als Ampel/"Archivstand" auf der Seite).
+
+FALLS ETWAS SCHIEFGEHT
+  Im Reiter "Actions" den letzten Lauf anklicken, dort steht die Ausgabe des
+  Skripts, u. a. welche Quelle (APG oder Energy-Charts) je Tag verwendet
+  wurde. preishistorie.json / erzeugung.json bleiben bei einem Fehler
+  unveraendert, der naechste Lauf (spaetestens in 3 Stunden) versucht es
+  erneut.
+
+DATEIEN FUER DIESES UPDATE HOCHLADEN (Stand 09.10.2026, Abschnitt 8)
+  Nur diese drei Dateien haben sich geaendert und muessen im Repository
+  ersetzt werden (Stift-Symbol -> Inhalt ersetzen -> Commit):
+    - dashboard.html
+    - sammle_daten.ps1
+    - LIESMICH.txt (dieses Dokument, nur zur eigenen Information)
+  modell.js, fixkosten-basis.json und preise-sammeln.yml sind unveraendert
+  und muessen nicht neu hochgeladen werden. Der Ordner test\ gehoert nicht
+  ins Repository. Nach dem Hochladen von sammle_daten.ps1 im Reiter
+  "Actions" einmal "Run workflow" von Hand starten (siehe oben).

@@ -60,17 +60,24 @@ function HoleAPGTag($datumIso) {
 }
 
 # Ausweichquelle, falls APG nicht rechtzeitig antwortet: Energy-Charts liefert denselben
-# Market-Coupling-Auktionspreis (siehe server.ps1 der lokalen Version, stichprobenartig
-# als wertgleich geprueft). Die API liefert nur ein rollendes Zeitfenster (kein Datumsfilter),
-# darum hier selbst auf den gewuenschten Kalendertag (Wien-Zeit) filtern.
+# Market-Coupling-Auktionspreis. Stichprobenvergleich 09.10.2026 (96 Viertelstunden): APG
+# MCPrice_Chart und Energy-Charts sind EXAKT identisch (0 EUR/MWh Abweichung) -- zum
+# Vergleich weicht der EXAA-10:15-Auktionspreis (APG V[0]) an demselben Tag um bis zu
+# 65 EUR/MWh ab. Das bestaetigt: MCPrice_Chart ist der Market-Coupling/SDAC-Preis, nicht
+# der EXAA-Preis, und Energy-Charts ist dafuer eine gueltige Ausweichquelle.
+# WICHTIG: Ohne start/end liefert die API nur den heutigen Tag der Gebotszone (laut
+# https://api.energy-charts.info/openapi.json), nie die Zukunft -- "morgen" kam dadurch
+# nie an. Darum hier immer explizit mit Datum abfragen; der Wien-Datumsfilter bleibt als
+# zusaetzliche Absicherung bestehen.
 function HoleEnergyChartsTag($datumIso) {
   return MitWiederholung -beschreibung "Energy-Charts $datumIso" -versuche 2 -timeoutSek 30 -aktion {
     param($timeoutSek)
-    $resp = Invoke-WebRequest -Uri 'https://api.energy-charts.info/price?bzn=AT' -UseBasicParsing -TimeoutSec $timeoutSek
+    $uri = "https://api.energy-charts.info/price?bzn=AT&start=$datumIso&end=$datumIso"
+    $resp = Invoke-WebRequest -Uri $uri -UseBasicParsing -TimeoutSec $timeoutSek
     $daten = $resp.Content | ConvertFrom-Json
     $ergebnis = @()
     for ($i = 0; $i -lt $daten.unix_seconds.Count; $i++) {
-      if ((WienDatum $daten.unix_seconds[$i]) -ne $datumIso) { continue }
+      if ((WienDatum $daten.unix_seconds[$i]) -ne $datumIso) { continue }  # Sicherheitsnetz
       $ergebnis += [PSCustomObject]@{ unix = $daten.unix_seconds[$i]; preis = $daten.price[$i] }
     }
     return ,$ergebnis
@@ -132,19 +139,42 @@ function SchreibeArchiv($pfad, $tage, $quelle) {
   $ausgabe | ConvertTo-Json -Depth 8 | Set-Content $pfad -Encoding utf8
 }
 
-# ---- Preise: heute und morgen (morgen evtl. noch nicht veroeffentlicht) ----
+# Ein vollstaendiger APG-Eintrag ist immer vorrangig: Energy-Charts ersetzt ihn nie, aber
+# ein Energy-Charts-Eintrag wird beim naechsten Erfolg von APG automatisch nachgezogen.
+# "APG" wird als Praefix verglichen (-like "APG*"), weil bereits nachtraeglich eingespielte
+# Tage als "APG (nachtraeglich eingespielt)" markiert sind, nicht nur als exaktes "APG".
+function IstApgQuelle($quelle) { return $quelle -like "APG*" }
+function SollteAktualisieren($bisherigerEintrag, $neueQuelle) {
+  if ($null -eq $bisherigerEintrag) { return $true }
+  if ((IstApgQuelle $bisherigerEintrag.quelle) -and -not (IstApgQuelle $neueQuelle)) { return $false }
+  return $true
+}
+
+# ---- Preise: heute und morgen, dazu gestern nur zum Nachziehen auf APG ----
+# (gestern ist in jeder Hinsicht laengst veroeffentlicht; wir fragen es nur erneut ab,
+# falls der bisherige Eintrag fehlt oder noch von der Ausweichquelle stammt.)
 $preisDatei = Join-Path $PSScriptRoot "preishistorie.json"
 $preisTage = LiesArchiv $preisDatei
 $jetztWien = [System.TimeZoneInfo]::ConvertTimeFromUtc([DateTime]::UtcNow, $wienTz)
-foreach ($offset in 0, 1) {
-  $datumIso = $jetztWien.AddDays($offset).ToString("yyyy-MM-dd")
+
+$zuPruefen = @($jetztWien.ToString("yyyy-MM-dd"), $jetztWien.AddDays(1).ToString("yyyy-MM-dd"))
+$gesternIso = $jetztWien.AddDays(-1).ToString("yyyy-MM-dd")
+$gesternEintrag = $preisTage[$gesternIso]
+if ($null -eq $gesternEintrag -or -not (IstApgQuelle $gesternEintrag.quelle)) { $zuPruefen += $gesternIso }
+
+foreach ($datumIso in $zuPruefen) {
   try {
     $ergebnis = HoleTagMitFallback $datumIso
     $werte = $ergebnis.werte
     if ($werte.Count -ge 90) {
-      $mittel = [Math]::Round((($werte | ForEach-Object { $_.preis } | Measure-Object -Average).Average), 2)
-      $preisTage[$datumIso] = [PSCustomObject]@{ datum = $datumIso; n = $werte.Count; mittelEurMwh = $mittel; quelle = $ergebnis.quelle; werte = $werte }
-      Write-Output "Preise gespeichert: $datumIso ($($werte.Count) Viertelstunden, Mittel $mittel EUR/MWh, Quelle $($ergebnis.quelle))"
+      $bisher = $preisTage[$datumIso]
+      if (SollteAktualisieren $bisher $ergebnis.quelle) {
+        $mittel = [Math]::Round((($werte | ForEach-Object { $_.preis } | Measure-Object -Average).Average), 2)
+        $preisTage[$datumIso] = [PSCustomObject]@{ datum = $datumIso; n = $werte.Count; mittelEurMwh = $mittel; quelle = $ergebnis.quelle; werte = $werte }
+        Write-Output "Preise gespeichert: $datumIso ($($werte.Count) Viertelstunden, Mittel $mittel EUR/MWh, Quelle $($ergebnis.quelle))"
+      } else {
+        Write-Output "Preise fuer $datumIso`: Ergebnis von Energy-Charts verworfen, bestehender APG-Eintrag ist vorrangig und bleibt unveraendert."
+      }
     } else {
       Write-Output "Preise fuer $datumIso noch nicht (vollstaendig) verfuegbar ($($werte.Count) Werte von $($ergebnis.quelle)) -- kein Fehler, naechster Lauf versucht es erneut."
     }
@@ -152,7 +182,7 @@ foreach ($offset in 0, 1) {
     Write-Output "Fehler beim Preisabruf fuer $datumIso (APG und Energy-Charts)`: $($_.Exception.Message) -- bestehender Eintrag bleibt unveraendert."
   }
 }
-SchreibeArchiv $preisDatei $preisTage "APG Transparency (Market Coupling Auktionspreis), https://transparency.apg.at"
+SchreibeArchiv $preisDatei $preisTage "APG Transparency (Market-Coupling-Auktionspreis), primaer https://transparency.apg.at; Ausweichquelle Energy-Charts (Fraunhofer ISE) bei APG-Ausfall, Quelle je Tag im Feld 'quelle'"
 Write-Output "preishistorie.json enthaelt jetzt $($preisTage.Count) Tage."
 
 # ---- Erzeugungsmix (Oekostrom-Anteil, Residuallast) ----
