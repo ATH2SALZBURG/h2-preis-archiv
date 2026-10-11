@@ -1,5 +1,5 @@
 {
-  "aktualisiert": "2026-10-11T00:36:04.7806704Z",
+  "aktualisiert": "2026-10-11T03:27:25.4000197Z",
   "quelle": "Energy-Charts (Fraunhofer ISE) public_power, Gebotszone AT",
   "tage": [
     {
@@ -871,6 +871,82 @@
           "unix": 1791659700,
           "oeko": 0.1391,
           "residual": 5410.8
+        }
+      ]
+    },
+    {
+      "datum": "2026-10-11",
+      "n": 14,
+      "werte": [
+        {
+          "unix": 1791669600,
+          "oeko": 0.1366,
+          "residual": 4716.0
+        },
+        {
+          "unix": 1791670500,
+          "oeko": 0.1514,
+          "residual": 4531.6
+        },
+        {
+          "unix": 1791671400,
+          "oeko": 0.1672,
+          "residual": 4390.0
+        },
+        {
+          "unix": 1791672300,
+          "oeko": 0.1708,
+          "residual": 4256.8
+        },
+        {
+          "unix": 1791673200,
+          "oeko": 0.18,
+          "residual": 4074.8
+        },
+        {
+          "unix": 1791674100,
+          "oeko": 0.1979,
+          "residual": 3836.4
+        },
+        {
+          "unix": 1791675000,
+          "oeko": 0.2074,
+          "residual": 3504.0
+        },
+        {
+          "unix": 1791675900,
+          "oeko": 0.2247,
+          "residual": 3296.4
+        },
+        {
+          "unix": 1791676800,
+          "oeko": 0.2403,
+          "residual": 3164.0
+        },
+        {
+          "unix": 1791677700,
+          "oeko": 0.2493,
+          "residual": 3074.4
+        },
+        {
+          "unix": 1791678600,
+          "oeko": 0.2626,
+          "residual": 2984.4
+        },
+        {
+          "unix": 1791679500,
+          "oeko": 0.271,
+          "residual": 2870.8
+        },
+        {
+          "unix": 1791680400,
+          "oeko": 0.2649,
+          "residual": 2704.4
+        },
+        {
+          "unix": 1791681300,
+          "oeko": 0.2795,
+          "residual": 2503.6
         }
       ]
     }
