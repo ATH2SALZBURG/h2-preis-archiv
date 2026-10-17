@@ -1,5 +1,5 @@
 {
-  "aktualisiert": "2026-10-17T00:47:42.3316123Z",
+  "aktualisiert": "2026-10-17T03:35:25.8982908Z",
   "quelle": "Energy-Charts (Fraunhofer ISE) public_power, Gebotszone AT",
   "tage": [
     {
@@ -3512,6 +3512,87 @@
           "unix": 1792179000,
           "oeko": 0.116,
           "residual": 6316.0
+        }
+      ]
+    },
+    {
+      "datum": "2026-10-17",
+      "n": 15,
+      "werte": [
+        {
+          "unix": 1792188000,
+          "oeko": 0.1069,
+          "residual": 5468.0
+        },
+        {
+          "unix": 1792188900,
+          "oeko": 0.1093,
+          "residual": 5397.6
+        },
+        {
+          "unix": 1792189800,
+          "oeko": 0.1107,
+          "residual": 5256.4
+        },
+        {
+          "unix": 1792190700,
+          "oeko": 0.1158,
+          "residual": 5201.6
+        },
+        {
+          "unix": 1792191600,
+          "oeko": 0.1126,
+          "residual": 5151.2
+        },
+        {
+          "unix": 1792192500,
+          "oeko": 0.1082,
+          "residual": 5084.4
+        },
+        {
+          "unix": 1792193400,
+          "oeko": 0.1077,
+          "residual": 5039.6
+        },
+        {
+          "unix": 1792194300,
+          "oeko": 0.1052,
+          "residual": 5048.0
+        },
+        {
+          "unix": 1792195200,
+          "oeko": 0.1067,
+          "residual": 4962.8
+        },
+        {
+          "unix": 1792196100,
+          "oeko": 0.1088,
+          "residual": 4968.0
+        },
+        {
+          "unix": 1792197000,
+          "oeko": 0.1092,
+          "residual": 4948.4
+        },
+        {
+          "unix": 1792197900,
+          "oeko": 0.1068,
+          "residual": 4865.2
+        },
+        {
+          "unix": 1792198800,
+          "oeko": 0.1101,
+          "residual": 4866.8
+        },
+        {
+          "unix": 1792199700,
+          "oeko": 0.1113,
+          "residual": 4828.4
+        },
+        {
+          "unix": 1792200600,
+          "oeko": 0.1175,
+          "residual": 4830.4
         }
       ]
     }
