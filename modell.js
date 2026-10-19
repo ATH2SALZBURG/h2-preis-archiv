@@ -10,7 +10,7 @@
    Ein Zeitschritt = 0,25 h (Viertelstunde).
    ===================================================================== */
 
-var MODELL_VERSION = '2.0 (01.10.2026, Datenblatt Enapter AEM Nexus 2500)';
+var MODELL_VERSION = '3.1 (19.10.2026, wie 3.0; Bereitschaftsverbrauch 2 % der Nennleistung im Stillstand im Basisfall)';
 
 /* ---------------------------------------------------------------------
    1. Standardparameter (Basisfall). Jeder Wert mit Herkunft.
@@ -26,7 +26,7 @@ var STANDARD = {
   // -> Verhaeltnis 59/64 = 0,922, uebertragen auf 2/3 bzw. 100 % der Leistung (Naeherung, eigene Annahme).
   teillast_kurve: [[0.0, 0.921875], [0.6667, 0.921875], [1.0, 1.0]],
   min_last: 0.05,         // Mindestlast Anteil der Anlagenleistung: ein Modul bei 10 % (Dauerbetrieb nach Datenblatt; 3,5 % nur bis 24 h) = rund 5 % der Anlagenleistung; ESMAP 2026: 5 %
-  bereitschaft: 0.0,      // Bereitschaftsleistung im Stillstand, Anteil der Nennleistung (eigene Annahme)
+  bereitschaft: 0.02,     // Bereitschaftsleistung im warmen Stillstand (heisser Standby), Anteil der Nennleistung: 2 % wie Eisele et al. (2026, Tab. S. 7); Janke et al. (2020, Tab. 2): 41 kW bei 1 074 kW = rund 4 %
 
   // --- Investition und Finanzierung ---
   capex: 2500,            // EUR/kW Gesamtprojekt 5 MW (Kap. 2.4.2: Bandbreite 2.000–3.000)
@@ -60,23 +60,20 @@ var STANDARD = {
   // --- Fahrweisen ---
   ruhe_stunden: [2, 3],      // gleichmaessiger Betrieb: taegliches Ruhefenster abwechselnd 2 und 3 h (Stundengrenze Art 4 Abs 1)
   ruhe_versatz: 7,           // Verschiebung des Ruhefensters je Tag in Stunden (rotiert ueber alle Tagesstunden)
-  fenster_tage: [1, 2, 3, 4, 7, 14, 28], // untersuchte Bilanzierungsfenster (Varianten; Fenster > 1 Tag setzen Voraussicht voraus)
-  tp_fenster: 1,             // Tagesplanung: Bilanzierungsfenster 1 Tag (Planung mit den am Vortag bekannten Preisen)
-  kappungen: [1.0, 0.9, 0.8, 0.7, 0.6, 0.5], // untersuchte Leistungskappungen (Anteil der Nennleistung)
+  ruhe_fest: false,          // zweite Referenz: Ruhefenster an festen Uhrzeiten (ruhe_fest_stunden) statt rotierend
+  ruhe_fest_stunden: { 2: [19, 20], 3: [18, 19, 20] }, // Uhrzeitstunden mit den im Mittel 2022-2025 hoechsten Day-Ahead-Preisen (eigene Auswertung, berechnung.js)
+  tp_fenster: 1,             // Tagesplanung (Nr. 3): Bilanzierungsfenster 1 Tag (Planung mit den am Vortag bekannten Day-Ahead-Preisen), volle Leistung
   ee_anteil: 0.90065,        // EE-Anteil 2024 fuer die Stundengrenze (Eurostat, 90,065 %)
 
   // --- Regime II ---
   eua: {2022: 80.32, 2023: 83.66, 2024: 65.00, 2025: 73.86}, // EUR/t, Jahresmittel (DEHSt)
   niedrigpreis_basis: 'viertelstunde', // 'viertelstunde' oder 'stundenmittel' (nur ab 1.10.2025 relevant)
   aufpreis: 0.0,             // EUR/MWh Gruenstromaufpreis auf das gesamte Vertragsvolumen
-  ppa_profil: 'windpv',      // 'windpv' (Regime II) oder 'laufwasser' (Zwischenvariante Art 4 Abs 2)
-  ppa_faktoren: [1.0, 1.15, 1.3, 1.5, 2.0], // untersuchte Vielfache des kleinsten zulaessigen Vertragsvolumens
-  ppa_max_faktor: 2.0,       // groesstes Vertragsvolumen als Vielfaches des Jahresstrombedarfs bei Nennlast (eigene Festlegung)
-  fenster_tage_II: [1, 2, 3, 4, 7, 14, 28, 56], // Bilanzierungsfenster im Regime II
-  kappungen_II: [1.0, 0.8, 0.7], // Leistungskappungen im Regime II
-  ruhe_preisorientiert: false, // gleichmaessiger Betrieb: Ruhefenster in die teuersten Stunden des Tages legen (zweite Referenz)
-  sperrfenster: null,        // z. B. [17, 21]: kein Bezug zwischen 17 und 21 Uhr (eingeschraenkter Netzzugang)
-  wechsel_jahre_regime1: 4   // Wechselfall: Betriebsjahre 2028–2031 im Regime I, danach Regime II
+  ppa_profil: 'windpv',      // 'windpv' (Regime II), 'laufwasser' (Nr. 7) oder 'misch25'/'misch50'/'misch75' (Nr. 8, Anteil Laufwasser)
+  // --- Auslegung Regime II (Nr. 5, Version 3.0): Vertragsgroesse und Speicher werden mit der Regel Nr. 6 ausgelegt ---
+  ausl_faktoren: [1.5, 2.0, 3.0], // Vertragsvolumen als Vielfaches des Jahresstrombedarfs bei Nennlast (eigene Festlegung)
+  ausl_misch: [0.25, 0.5, 0.75], // Nr. 8: Anteil Laufwasser an der Vertragsmenge
+  ausl_aufpreise: [0, 10, 25]  // EUR/MWh Gruenstromaufpreis (Kap. 4)
 };
 
 /* ---------------------------------------------------------------------
@@ -166,6 +163,11 @@ function jahresdaten(DATEN, jahr, p) {
   function norm(a) { var t = 0; for (var i = 0; i < n; i++) t += Math.max(0, a[i]); return a.map(function (x) { return Math.max(0, x) / t; }); }
   var wp = new Array(n); for (i = 0; i < n; i++) wp[i] = J.wind[i] + J.pv[i];
   d.profil = { windpv: norm(wp), laufwasser: norm(J.laufwasser) };
+  // Mischvertraege (Nr. 8): Anteil beta der Vertragsmenge folgt dem Laufwasserprofil, der Rest Wind + PV
+  [0.25, 0.5, 0.75].forEach(function (beta) {
+    var m = new Array(n); for (var q = 0; q < n; q++) m[q] = beta * d.profil.laufwasser[q] + (1 - beta) * d.profil.windpv[q];
+    d.profil['misch' + Math.round(beta * 100)] = m;
+  });
   d.stundenJahr = (n / 4);
   return d;
 }
@@ -180,11 +182,9 @@ function fahrplanGleichmaessig(d, p) {
   var Pel = new Array(d.n).fill(0), Hk = new Array(d.n).fill(0), ok = true;
   d.tage.forEach(function (t, di) {
     var r = p.ruhe_stunden[di % p.ruhe_stunden.length], ruhe = {};
-    if (p.ruhe_preisorientiert) {
-      // die r teuersten Uhrzeitstunden des Tages (Day-Ahead-Preise des Folgetags sind bekannt)
-      var st = {};
-      for (var i = t[0]; i < t[1]; i++) { var u = d.uhstunde[i]; st[u] = (st[u] || 0) + d.preis[i]; }
-      Object.keys(st).sort(function (a, b) { return st[b] - st[a]; }).slice(0, r).forEach(function (u) { ruhe[u] = 1; });
+    if (p.ruhe_fest) {
+      // zweite Referenz (Nr. 2): Ruhe an festen Uhrzeiten mit den im Jahresmittel hoechsten Preisen
+      p.ruhe_fest_stunden[r].forEach(function (h) { for (var i0 = t[0]; i0 < t[1]; i0++) if (d.stunde[i0] === h) ruhe[d.uhstunde[i0]] = 1; });
     } else {
       var h0 = (di * p.ruhe_versatz) % 24;
       for (var i2 = t[0]; i2 < t[1]; i2++) if (((d.stunde[i2] - h0 + 24) % 24) < r) ruhe[d.uhstunde[i2]] = 1;
@@ -196,7 +196,7 @@ function fahrplanGleichmaessig(d, p) {
     if (P < 0) { ok = false; P = p.P_nenn; }
     idx.forEach(function (i) { Pel[i] = P; Hk[i] = wasserstoff(P, p); });
   });
-  return { Pel: Pel, Hk: Hk, machbar: ok, art: p.ruhe_preisorientiert ? 'gleichmaessig_preisbewusst' : 'gleichmaessig' };
+  return { Pel: Pel, Hk: Hk, machbar: ok, art: p.ruhe_fest ? 'gleichmaessig_fest' : 'gleichmaessig' };
 }
 
 // 4.2 Preisorientierter Betrieb: je Bilanzierungsfenster von D Tagen die kostenguenstigsten
@@ -318,97 +318,104 @@ function bewerte(d, p, plan, zusatz) {
 }
 
 /* ---------------------------------------------------------------------
-   6. Regime I: Netzstrom voll anrechenbar (Art 4 Abs 1)
+   6. Regime I: Netzstrom voll anrechenbar (Art 4 Abs 1), Stundengrenze
+   Nr. 1 Referenzfall (rotierende Pause), Nr. 2 zweite Referenz (feste Pause),
+   Nr. 3 Tagesplanung (je Tag die guenstigsten Viertelstunden mit voller Leistung).
+   Nr. 4 (Optimierung) wird extern gerechnet (lp_lauf.py) und mit bewerteExtern bewertet.
    --------------------------------------------------------------------- */
 function rechneRegimeI(d, p) {
   var gl = bewerte(d, p, fahrplanGleichmaessig(d, p));
-  var varianten = [];
-  p.kappungen.forEach(function (c) {
-    var verf = new Array(d.n).fill(c * p.P_nenn);
-    if (p.sperrfenster) for (var i = 0; i < d.n; i++) if (d.stunde[i] >= p.sperrfenster[0] && d.stunde[i] < p.sperrfenster[1]) verf[i] = 0;
-    p.fenster_tage.forEach(function (D) {
-      var r = bewerte(d, p, fahrplanPreis(d, p, D, verf), { kappung: c });
-      if (r.machbar && r.stundengrenze_ok) varianten.push(r);
-    });
-  });
-  varianten.sort(function (a, b) { return a.bereitstellung - b.bereitstellung; });
-  // Tagesplanung: guenstigste Kappung beim Fenster von einem Tag; laengere Fenster nur als Varianten
-  var tp = varianten.filter(function (v) { return v.D === p.tp_fenster; })[0] || varianten[0];
-  return { gleichmaessig: gl, preisorientiert: tp, bestes_fenster: varianten[0], varianten: varianten };
+  var glf = bewerte(d, p, fahrplanGleichmaessig(d, mitParametern(p, { ruhe_fest: true })));
+  var tp = bewerte(d, p, fahrplanPreis(d, p, p.tp_fenster, new Array(d.n).fill(p.P_nenn)));
+  return { referenz: gl, referenz_fest: glf, tagesplanung: tp };
 }
 
 /* ---------------------------------------------------------------------
-   7. Regime II: Strombezugsvertrag mit stuendlicher (hier viertelstuendlicher)
-   Korrelation; Niedrigpreisstunden nach Art 6 Abs 3 zeitlich stets korreliert.
-   Vertragsvolumen V (MWh/a) mit Profil; zulaessige Leistung je Viertelstunde:
-   Niedrigpreis: Kappung x Nennleistung, sonst min(Kappung x Nennleistung, Vertragsleistung).
-   Mengenbedingung Art 5: Elektrolyseenergie im Jahr <= Vertragsvolumen.
+   7. Regime II: Strombezugsvertrag mit zeitlicher Korrelation (hier je Viertelstunde,
+   Art 6 Abs 2 DelVO 2023/1184 ab 2030 stuendlich); Niedrigpreis-Viertelstunden nach
+   Art 6 Abs 3 gelten stets als korreliert. Vertragsvolumen V (MWh/a) mit Erzeugungsprofil;
+   zulaessige Leistung je Viertelstunde: Niedrigpreis: Nennleistung, sonst
+   min(Nennleistung, Vertragsleistung). Mengenbedingung Art 5: Elektrolyseenergie <= V.
    --------------------------------------------------------------------- */
-function verfuegbarkeitII(d, p, V, c) {
-  var prof = d.profil[p.ppa_profil], a = new Array(d.n);
-  for (var i = 0; i < d.n; i++) a[i] = d.niedrig[i] ? c * p.P_nenn : Math.min(c * p.P_nenn, V * prof[i] * 4);
+/* Tagesplanung mit Speicherziel (Nr. 6, mit anderen Profilen Nr. 7 und 8; Auslegung Nr. 5)
+   Tagesplanung mit Speicherziel: Der Betreiber kennt am Vortag die Day-Ahead-Preise
+   und die Lieferung des Strombezugsvertrags (Wind/PV- bzw. Laufwasserprognose) fuer
+   den Folgetag. Je Tag werden die verfuegbaren Viertelstunden nach dem Preis gereiht
+   und so viele belegt, dass die Tagesmenge entsteht und der Speicher am Tagesende
+   wieder voll ist (Speicherziel = voller Speicher). Reicht die Lieferung nicht, wird
+   der Speicher geleert (Flaute) und an den folgenden Tagen wieder aufgefuellt.
+   Die Groesse des Speichers ist keine Vorgabe, sondern folgt aus der groessten
+   Entleerung im Jahr (Auslegung mit dem historischen Jahr, wie in der Praxis).
+   D0 = Entleerung (kg) zu Jahresbeginn; sie wird in auslegungII so gewaehlt, dass sie
+   der Entleerung am Jahresende entspricht (das Jahr wiederholt sich, Anfangs- = Endfuellstand).
+   --------------------------------------------------------------------- */
+function fahrplanSpeicherziel(d, p, verf, D0) {
+  var n = d.n, e = entgelte(p), a = p.ziel_kg_tag / 96;
+  var Pel = new Array(n).fill(0), Hk = new Array(n).fill(0), Df = D0 || 0, Dmax = Df, fehl = 0, tageFehl = 0;
+  d.tage.forEach(function (t) {
+    var bedarf = Df + a * (t[1] - t[0]);              // Tagesmenge plus Auffuellen des Speichers
+    var idx = []; for (var i = t[0]; i < t[1]; i++) if (verf[i] > 0) idx.push(i);
+    idx.sort(function (x, y) { return (d.preis[x] + e.fvar) * secRel(verf[x] / p.P_nenn, p) - (d.preis[y] + e.fvar) * secRel(verf[y] / p.P_nenn, p); });
+    for (var k = 0; k < idx.length && bedarf > 1e-9; k++) {
+      var j = idx[k], m = wasserstoff(verf[j], p);
+      if (m <= bedarf) { Pel[j] = verf[j]; Hk[j] = m; bedarf -= m; }
+      else {
+        var P = leistungFuer(bedarf, verf[j], p);
+        P = Math.max(P, Math.min(verf[j], p.min_last * p.P_nenn)); // Mindestlast einhalten
+        Pel[j] = P; Hk[j] = wasserstoff(P, p); bedarf = 0;
+      }
+    }
+    if (bedarf > 1e-6) { fehl += bedarf; tageFehl++; }  // Lieferung reichte nicht: Speicher wird geleert
+    for (i = t[0]; i < t[1]; i++) { Df += a - Hk[i]; if (Df > Dmax) Dmax = Df; }
+  });
+  return { Pel: Pel, Hk: Hk, machbar: true, D0: D0 || 0, Dmax: Dmax, Dende: Df, fehlmenge: fehl, tage_mit_fehlmenge: tageFehl, art: 'speicherziel' };
+}
+// zulaessige Leistung je Viertelstunde fuer Vertragsvolumen V und Profil (mit Niedrigpreisregel Art 6 Abs 3).
+// Liefert der Vertrag weniger als die Mindestlast, kann der Elektrolyseur in dieser Viertelstunde nicht
+// korreliert betrieben werden (ein Betrieb mit Mindestlast laege ueber der Vertragslieferung): zulaessig = 0.
+function verfuegbarkeitVertrag(d, p, V, profil) {
+  var prof = d.profil[profil], a = new Array(d.n), pmin = p.min_last * p.P_nenn;
+  for (var i = 0; i < d.n; i++) {
+    if (d.niedrig[i]) { a[i] = p.P_nenn; continue; }
+    var lief = V * prof[i] * 4;
+    a[i] = lief < pmin ? 0 : Math.min(p.P_nenn, lief);
+  }
   return a;
 }
-function machbarII(d, p, V, D, c) {
-  var plan = fahrplanPreis(d, p, D, verfuegbarkeitII(d, p, V, c));
-  var E = 0; for (var i = 0; i < d.n; i++) E += plan.Pel[i] * 0.25;
-  return { ok: plan.machbar && E <= V + 1e-6, plan: plan };
+// Regel mit zyklischem Jahr: Entleerung am Jahresende = Entleerung am Jahresanfang (hoechstens 6 Durchlaeufe)
+function fahrplanSpeicherzielZyklisch(d, p, verf) {
+  var D0 = 0, plan;
+  for (var it = 0; it < 6; it++) { plan = fahrplanSpeicherziel(d, p, verf, D0); if (Math.abs(plan.Dende - D0) < 1e-6) break; D0 = plan.Dende; }
+  plan.zyklisch_abw = plan.Dende - plan.D0; plan.durchlaeufe = it + 1;
+  return plan;
 }
-function rechneRegimeII(d, p) {
-  var varianten = [];
-  var Ebedarf = p.ziel_kg_tag * d.anzahlTage * p.sec_nenn / 1000;   // MWh/a bei Nennlast-Bedarf
-  var Vmax = p.ppa_max_faktor * Ebedarf;                              // groesstes zulaessiges Vertragsvolumen
-  p.kappungen_II.forEach(function (c) {
-    p.fenster_tage_II.forEach(function (D) {
-      if (!machbarII(d, p, Vmax, D, c).ok) return;                   // mit groesstem Vertrag nicht machbar
-      var lo = 0.5 * Ebedarf, hi = Vmax;
-      for (var it = 0; it < 22; it++) { var mid = (lo + hi) / 2; if (machbarII(d, p, mid, D, c).ok) hi = mid; else lo = mid; }
-      var Vs = p.ppa_faktoren.map(function (f) { return Math.min(hi * f, Vmax); });
-      Vs.push(Vmax);
-      Vs.filter(function (v, k) { return Vs.indexOf(v) === k; }).forEach(function (V) {
-        var m = machbarII(d, p, V, D, c);
-        if (!m.ok) return;
-        var r = bewerte(d, p, m.plan, { ppaVolumen: V, aufpreis: p.aufpreis, kappung: c });
-        r.ppa_faktor_bedarf = V / Ebedarf; r.ppa_min_MWh = hi;
-        varianten.push(r);
-      });
+/* Auslegung (Nr. 5): fuer jedes Vertragsvolumen (Vielfaches des Jahresstrombedarfs) und jedes Profil
+   wird die Regel gerechnet und bewertet; der Speicher folgt aus der groessten Entleerung.
+   Je Aufpreis wird die guenstigste Kombination gewaehlt (Aufpreis = alpha x V, aendert den Fahrplan nicht). */
+function auslegungII(d, p, profile) {
+  var Ebedarf = p.ziel_kg_tag * d.anzahlTage * p.sec_nenn / 1000, varianten = [];
+  profile.forEach(function (prof) {
+    p.ausl_faktoren.forEach(function (f) {
+      var V = f * Ebedarf, verf = verfuegbarkeitVertrag(d, p, V, prof), plan = fahrplanSpeicherzielZyklisch(d, p, verf);
+      var r0 = bewerte(d, mitParametern(p, { ppa_profil: prof }), plan, { ppaVolumen: V, aufpreis: 0 });
+      var v = { profil: prof, faktor: f, V: V, D0: plan.D0, Dmax: plan.Dmax, Dende: plan.Dende, zyklisch_abw: plan.zyklisch_abw, durchlaeufe: plan.durchlaeufe,
+                fehlmenge: plan.fehlmenge, tage_mit_fehlmenge: plan.tage_mit_fehlmenge, H_kg: r0.H_kg, E_el_MWh: r0.E_el_MWh,
+                speicher_kg: r0.speicher_kg, speicher_netto_kg: r0.speicher_netto_kg, bereitstellung: {}, lcoh: {},
+                mengenbedingung_ok: r0.E_el_MWh <= V + 1e-6, plan: plan, bewertung0: r0 };
+      p.ausl_aufpreise.forEach(function (al) { v.bereitstellung[al] = r0.bereitstellung + al * V / r0.H_kg; v.lcoh[al] = r0.lcoh + al * V / r0.H_kg; });
+      varianten.push(v);
     });
   });
-  varianten.sort(function (a, b) { return a.bereitstellung - b.bereitstellung; });
-  return { bester: varianten[0] || null, varianten: varianten, machbar: varianten.length > 0 };
+  var wahl = {};
+  p.ausl_aufpreise.forEach(function (al) {
+    var best = null; varianten.forEach(function (v) { if (v.mengenbedingung_ok && (!best || v.bereitstellung[al] < best.bereitstellung[al])) best = v; });
+    wahl[al] = best;
+  });
+  return { varianten: varianten, wahl: wahl, Ebedarf: Ebedarf };
 }
 
 /* ---------------------------------------------------------------------
-   8. Wechselfall: Betriebsjahre 1..m im Regime I, danach Regime II.
-   Speicher und Verdichter werden zunaechst fuer den Bedarf der Regime-I-Fahrweise
-   errichtet; die Erweiterung auf den Regime-II-Bedarf wird am Ende des Jahres m
-   investiert. Barwertrechnung: LCOH = Barwert aller Kosten / Barwert der Menge.
-   --------------------------------------------------------------------- */
-function rechneWechsel(rI, rII, p) {
-  var n = p.nutzungsdauer, m = p.wechsel_jahre_regime1, i = p.zins;
-  var H = rI.H_kg, PkW = p.P_nenn * 1000;
-  // laufende Kosten je Jahr ohne Investitionen in Speicher und Verdichter
-  var laufL = function (r) { var K = r.kosten; return K.energie + K.entgelteArbeit + K.leistungspreis + K.pauschale + K.wasser + K.aufpreis + K.betrieb + K.stack; };
-  var laufV = function (r) { return r.kosten.verdEnergie; };
-  var invSp = function (kg) { return p.speicher_capex * kg; }, invV = function (kgh) { return p.verdichter_capex * kgh; };
-  var sp1 = rI.speicher_kg, v1 = rI.verdichter_kg_h;
-  var sp2 = Math.max(rI.speicher_kg, rII.speicher_kg), v2 = Math.max(rI.verdichter_kg_h, rII.verdichter_kg_h);
-  var pvL = 0, pvV = 0, pvH = 0;
-  for (var t = 1; t <= n; t++) {
-    var df = 1 / Math.pow(1 + i, t), r = t <= m ? rI : rII;
-    var om = p.speicher_om * invSp(t <= m ? sp1 : sp2) + p.verdichter_om * invV(t <= m ? v1 : v2);
-    pvL += df * laufL(r); pvV += df * (laufV(r) + om); pvH += df * H;
-  }
-  var inv0 = p.capex * PkW, invSV0 = invSp(sp1) + invV(v1);
-  var invSVm = m < n ? (invSp(sp2) - invSp(sp1) + invV(v2) - invV(v1)) / Math.pow(1 + i, m) : 0;
-  // Erweiterung wird zum Ende der Nutzungsdauer nicht vollstaendig abgeschrieben: Restwert nicht angesetzt (vorsichtig)
-  var lcoh = (inv0 + pvL) / pvH;
-  var bereit = (inv0 + invSV0 + invSVm + pvL + pvV) / pvH;
-  return { bereitstellung: bereit, lcoh: lcoh, speicher_kg: sp2, verdichter_kg_h: v2, jahre_regime1: m };
-}
-
-/* ---------------------------------------------------------------------
-   9. Preisstatistik je Jahr (fuer H1, Teil 2)
+   8. Preisstatistik je Jahr (fuer H1, Teil 2)
    --------------------------------------------------------------------- */
 function preisstatistik(d, p) {
   var n = d.n, s = 0, ss = 0, i;
@@ -429,24 +436,19 @@ function preisstatistik(d, p) {
 }
 
 /* ---------------------------------------------------------------------
-   10. Gesamtrechnung fuer ein Jahr
+   9. Gesamtrechnung fuer ein Jahr (Parameter-Rechner.html)
    --------------------------------------------------------------------- */
 function rechneJahr(DATEN, jahr, p, optionen) {
   optionen = optionen || {};
   var d = jahresdaten(DATEN, jahr, p);
   var out = { jahr: jahr, preis: preisstatistik(d, p) };
   out.regime1 = rechneRegimeI(d, p);
-  if (optionen.regime2 !== false) {
-    out.regime2 = rechneRegimeII(d, mitParametern(p, { ppa_profil: 'windpv' }));
-    if (optionen.zwischen !== false) out.zwischen = rechneRegimeII(d, mitParametern(p, { ppa_profil: 'laufwasser' }));
-    var besterI = out.regime1.preisorientiert.bereitstellung < out.regime1.gleichmaessig.bereitstellung ? out.regime1.preisorientiert : out.regime1.gleichmaessig;
-    if (out.regime2.bester) out.wechsel = rechneWechsel(besterI, out.regime2.bester, p);
-  }
+  if (optionen.regime2 !== false) out.regime2 = auslegungII(d, p, optionen.profile || ['windpv', 'laufwasser', 'misch25', 'misch50', 'misch75']);
   return out;
 }
 
 /* ---------------------------------------------------------------------
-   11. Bewertung eines extern ermittelten Fahrplans (lineares Programm)
+   10. Bewertung eines extern ermittelten Fahrplans (lineares Programm, Nr. 4)
    --------------------------------------------------------------------- */
 function bewerteExtern(DATEN, jahr, p, Pel, Hk, zusatz, art) {
   var d = jahresdaten(DATEN, jahr, p);
@@ -458,7 +460,8 @@ if (typeof module !== 'undefined') module.exports = {
   bewerteExtern: bewerteExtern,
   STANDARD: STANDARD, MODELL_VERSION: MODELL_VERSION, mitParametern: mitParametern, kopiere: kopiere,
   jahresdaten: jahresdaten, fahrplanGleichmaessig: fahrplanGleichmaessig, fahrplanPreis: fahrplanPreis,
-  bewerte: bewerte, rechneRegimeI: rechneRegimeI, rechneRegimeII: rechneRegimeII, rechneWechsel: rechneWechsel,
+  bewerte: bewerte, rechneRegimeI: rechneRegimeI,
+  fahrplanSpeicherziel: fahrplanSpeicherziel, fahrplanSpeicherzielZyklisch: fahrplanSpeicherzielZyklisch, verfuegbarkeitVertrag: verfuegbarkeitVertrag, auslegungII: auslegungII,
   preisstatistik: preisstatistik, rechneJahr: rechneJahr, annuitaet: annuitaet, secRel: secRel, entgelte: entgelte,
-  wasserstoff: wasserstoff
+  wasserstoff: wasserstoff, leistungFuer: leistungFuer
 };
