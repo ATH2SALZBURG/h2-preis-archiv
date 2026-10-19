@@ -933,7 +933,7 @@ function aktualisieren() {
   ladeFixkostenBasis().then(function (basisJson) {
     basisGlobalJson = basisJson;
     var basis = basisJson.basis;
-    document.getElementById('untertitel').textContent = z(STANDARD.P_nenn, 1) + '-MW-Elektrolyseur Salzburg · Basisfall der Masterarbeit (J. Grasl) · läuft komplett online (GitHub Pages + Actions)';
+    document.getElementById('untertitel').textContent = z(STANDARD.P_nenn, 1) + '-MW-Elektrolyseur Salzburg · Basisfall der Masterarbeit (J. Grasl)';
     document.getElementById('k-zielmenge').textContent = z(STANDARD.ziel_kg_tag, 0);
     document.getElementById('k-nutzungsdauer').textContent = STANDARD.nutzungsdauer;
     document.getElementById('k-basisjahr2').textContent = basis.jahr;
