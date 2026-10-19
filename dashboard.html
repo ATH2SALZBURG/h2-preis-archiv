@@ -2,7 +2,7 @@
 <html lang="de">
 <head>
 <meta charset="utf-8">
-<title>Live-Wasserstoffpreis Salzburg</title>
+<title>Live-Wasserstoffpreis Salzburg (online)</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
   :root { --blau:#33506b; --hblau:#8fb0cc; --orange:#c08a2e; --gruen:#6d8f3f; --hgruen:#bcd19e; --rot:#a8442a; --grau:#6b6b6b; --linie:#dcdcdc; --hg:#f6f7f8; --flaeche:#eef3f6; }
@@ -12,7 +12,6 @@
   header h1 { margin: 0; font-size: 20px; }
   header p { margin: 4px 0 0; font-size: 13px; opacity: .9; }
   #uhr { font-size: 13px; opacity:.9; text-align:right; }
-  #testbanner { background: var(--orange); color: #fff; text-align: center; padding: 6px 10px; font-size: 13px; font-weight: bold; }
   main { max-width: 1100px; margin: 0 auto; padding: 16px 20px 40px; }
   .kacheln { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; margin-bottom: 18px; }
   .kachel { border: 1px solid var(--linie); border-radius: 8px; padding: 12px 14px; background: var(--hg); }
@@ -35,7 +34,6 @@
   .badge.aktiv { background: var(--gruen); color:#fff; }
   .badge.inaktiv { background: #cfcfcf; color:#4a4a4a; }
   h2 { font-size: 16px; color: var(--blau); margin: 22px 0 8px; }
-  h3.unter-ueberschrift { font-size: 13px; color: var(--grau); margin: 16px 0 6px; text-transform: uppercase; letter-spacing: .03em; }
   #status { font-size: 13px; color: var(--grau); margin: 2px 0 10px; }
   #status.fehler { color: var(--rot); }
   .chartbox { border: 1px solid var(--linie); border-radius: 8px; padding: 10px 14px 4px; background: #fff; }
@@ -65,21 +63,27 @@
   .pfeil { font-weight: bold; }
   .pfeil.runter { color: var(--gruen); }
   .pfeil.rauf { color: var(--rot); }
+  .badge-online { display:inline-block; background:rgba(255,255,255,.18); color:#fff; font-size:11px; padding:2px 8px; border-radius:10px; margin-left:8px; vertical-align:middle; }
+  .ampel { display:inline-block; margin-top:6px; padding:4px 11px; border-radius:12px; font-size:12.5px; font-weight:bold; color:#fff; }
+  .ampel-rot { background: var(--rot); }
+  .ampel-gelb { background: var(--orange); }
+  .ampel-gruen { background: var(--gruen); }
   footer { max-width: 1100px; margin: 10px auto 30px; padding: 0 20px; }
   button { background: var(--blau); color: #fff; border: 0; padding: 7px 12px; border-radius: 5px; font-size: 13px; cursor: pointer; }
   button:disabled { opacity:.5; cursor:wait; }
 </style>
 </head>
 <body>
-<div id="testbanner" style="display:none"></div>
 <header>
   <div>
-    <h1>Was kostet 1 kg Wasserstoff heute?</h1>
+    <h1>Was kostet 1 kg Wasserstoff heute? <span class="badge-online">online</span></h1>
     <p id="untertitel">Lädt …</p>
+    <div class="ampel" id="ampel">Lädt …</div>
   </div>
   <div id="uhr"></div>
 </header>
 <main>
+  <p class="hinweis" id="testbanner" style="display:none; background:var(--orange); color:#fff; padding:6px 10px; border-radius:6px; font-weight:bold;"></p>
   <div id="status">Lade Daten …</div>
 
   <div class="kacheln">
@@ -122,6 +126,7 @@
     <span><i class="jetzt"></i> jetzt</span>
   </div>
   <p class="hinweis" id="chart-hinweis">Die grün hinterlegten Zeiten sind die günstigsten Viertelstunden des Tages – genau dann läuft die Anlage.</p>
+  <p class="hinweis" id="tabelle-quelle">&nbsp;</p>
   <details>
     <summary>Werte als Tabelle anzeigen</summary>
     <table class="tabelle" id="tabelle"><thead><tr><th>Zeit</th><th>Preis EUR/MWh</th><th>Anlage</th><th>Niedrigpreis (Art 6 Abs 3)</th></tr></thead><tbody></tbody></table>
@@ -139,7 +144,7 @@
       <div class="unter" id="e-jahresvergleich-unter">&nbsp;</div>
     </div>
     <div class="kachel">
-      <div class="label">Im Vergleich zu den letzten Tagen</div>
+      <div class="label">Im Vergleich zu den erfassten Tagen</div>
       <div class="wert" id="e-verlauf">–</div>
       <div class="unter" id="e-verlauf-unter">&nbsp;</div>
     </div>
@@ -168,6 +173,11 @@
       <div class="wert" id="e-fossil">–</div>
       <div class="unter" id="e-fossil-unter">&nbsp;</div>
     </div>
+    <div class="kachel">
+      <div class="label">Mit Grünstromaufpreis (Untergrenze)</div>
+      <div class="wert" id="e-gruenstrom">–</div>
+      <div class="unter" id="e-gruenstrom-unter">&nbsp;</div>
+    </div>
   </div>
   <div class="chartbox" id="e-sparkline-box" style="display:none; padding:10px 14px 4px; position:relative;">
     <div class="chart-titel">Ø Strompreis pro erfasstem Tag (Cent/kWh)</div>
@@ -184,6 +194,22 @@
     </div>
   </div>
 
+  <h2>Wann die Anlage gelaufen ist</h2>
+  <div class="tabs">
+    <button id="heat-tab-betrieb" class="aktiv">Betrieb</button>
+    <button id="heat-tab-preis">Strompreis</button>
+  </div>
+  <div class="chartbox" style="padding:10px 14px 8px;">
+    <svg id="heatmap-achse" viewBox="0 0 960 20" preserveAspectRatio="xMidYMid meet" style="display:block;"></svg>
+    <div id="heatmap-scroll" style="max-height:440px; overflow-y:auto; position:relative;">
+      <svg id="heatmap" viewBox="0 0 960 100" preserveAspectRatio="xMidYMid meet" style="display:block;"></svg>
+      <div id="tooltip-heatmap" class="tooltip-mini"></div>
+    </div>
+  </div>
+  <div class="legende" id="heatmap-legende"></div>
+  <p class="hinweis" id="heatmap-summary">&nbsp;</p>
+  <p class="hinweis">Die Grafik wird mit jeder Woche aussagekräftiger.</p>
+
   <h2>So kommt der Preis zustande</h2>
   <div class="erklaerbox">
     <ol class="schritte">
@@ -195,7 +221,9 @@
         für die Tagesmenge (<span id="k-zielmenge">1.000</span> kg Wasserstoff) eingekauft ist. Diese Zeiten sind im
         Chart grün hinterlegt.</li>
       <li><b>Stromkosten:</b> Aus diesen günstigen Zeiten ergeben sich die <i>Stromkosten</i> – der reine
-        Strompreis, dazu Netzkosten/Abgaben und der Strom, um den Wasserstoff für die Tankstelle zu verdichten.</li>
+        Strompreis, dazu Netzkosten/Abgaben, der Strom, um den Wasserstoff für die Tankstelle zu verdichten, und der
+        kleine Strombedarf, um die Anlage in den Pausen warm zu halten (2 % der Nennleistung, damit sie in
+        225 Sekunden wieder voll da ist).</li>
       <li><b>Fixkosten der Anlage:</b> Dazu kommen Kosten, die jeden Tag etwa gleich hoch sind, egal wie der Strompreis
         gerade steht: die Anschaffung der Anlage (verteilt auf <span id="k-nutzungsdauer">25</span> Jahre), Wartung,
         der Netzanschluss sowie Speicher und Verdichter.</li>
@@ -213,6 +241,13 @@
   <details>
     <summary>Technische Details &amp; Quellen (für Nachvollziehbarkeit)</summary>
     <p class="hinweis">
+      <b>Diese Seite läuft vollständig online</b> (GitHub Pages) und greift auf nichts Lokales zu: Day-Ahead-Preise
+      und Erzeugungsdaten werden mehrmals täglich von einer GitHub Action gesammelt (unabhängig von jedem
+      Laptop/Gerät) und als Dateien in diesem Repository abgelegt; diese Seite liest sie beim Öffnen direkt von
+      dort. Die Kostenrechnung (Datei modell.js) läuft im Browser – dieselbe Formel wie im lokalen Dashboard der
+      Masterarbeit, hier als Kopie mitgeliefert.
+    </p>
+    <p class="hinweis">
       <b>Wichtig:</b> Es gibt keinen amtlichen oder gehandelten "Day-Ahead-Preis für Wasserstoff" – anders als bei
       Strom existiert keine Börse, an der Wasserstoff viertelstundengenau gehandelt wird. Beide Zahlen oben sind
       <b>berechnete Herstellungskosten-Schätzwerte</b>, kein gehandelter Marktpreis: "Heute" zeigt, was 1 kg
@@ -224,33 +259,46 @@
     <p class="hinweis">
       Vereinfachte Live-Variante des Berechnungsmodells der Masterarbeit: Die <b>Fixkosten</b>
       (Kapital, Stacktausch, fixe Betriebskosten, Leistungspreis, Förderpauschale, Wasser, Verdichter- und
-      Speicherinvestition) stammen aus der Jahresrechnung für das Referenzjahr <span id="k-basisjahr2">–</span>
-      mit Tagesplanung (Regime I, dieselbe Kostenrechnung wie Parameter-Rechner.html, Datei modell.js,
-      Version <span id="k-version">–</span>). Nur die <b>Energiekosten</b> (Strombezug, arbeitsbezogene
-      Netzentgelte/Abgaben, Verdichtungsenergie) werden täglich neu aus den tatsächlichen Day-Ahead-Preisen
-      berechnet – auf Basis der günstigsten Viertelstunden des Tages bei voller Nennleistung
-      (Kappung <span id="k-kappung">–</span>), analog zur "Tagesplanung" in Abschnitt 4.5.3 der Arbeit. Diese Zahl
-      ist daher eine Tendenzgröße für den heutigen Tag, keine neue Optimierung von Speicher- oder Verdichtergröße.
+      Speicherinvestition) stammen aus einer einmalig vorberechneten Jahresrechnung für das Referenzjahr
+      <span id="k-basisjahr2">–</span> mit Tagesplanung (Regime I, dieselbe Kostenrechnung wie Parameter-Rechner.html
+      der Masterarbeit, Datei modell.js, Version <span id="k-version">–</span>; Datei fixkosten-basis.json,
+      erzeugt <span id="k-basis-erzeugt">–</span> – bei Aktualisierung des Masterarbeit-Modells muss diese Datei
+      neu erzeugt werden; Skript fixkosten_basis_erzeugen.js). Nur die <b>Energiekosten</b> (Strombezug,
+      Bereitschaftsverbrauch im Stillstand, arbeitsbezogene Netzentgelte/Abgaben, Verdichtungsenergie) werden aus
+      den tatsächlichen Day-Ahead-Preisen berechnet – auf Basis der günstigsten
+      Viertelstunden des Tages bei voller Nennleistung, analog zur
+      "Tagesplanung" in Abschnitt 4.5.3 der Arbeit. Diese Zahl ist daher eine Tendenzgröße für den heutigen Tag,
+      keine neue Optimierung von Speicher- oder Verdichtergröße.
     </p>
     <p class="hinweis">
       Datenquelle Day-Ahead-Preise: primär die Transparenzplattform der Austrian Power Grid (APG), die
       Übertragungsnetzbetreiberin, die Day-Ahead-Preise gesetzlich veröffentlichen muss (Art 12.1.d VO (EU)
-      Nr. 543/2013) – meist früher verfügbar als andere Quellen, insbesondere für den Folgetag. Weicht
-      ersatzweise auf Energy-Charts (Fraunhofer ISE) aus, <a href="https://api.energy-charts.info/price?bzn=AT" target="_blank" rel="noopener">api.energy-charts.info</a>,
-      dieselbe Quellenfamilie wie in der Masterarbeit (Preise: Bundesnetzagentur | SMARD.de, Datenbasis ENTSO-E).
-      Beide Quellen liefern denselben Market-Coupling-Auktionspreis (stichprobenartig geprüft: alle Werte
-      identisch). Der Abruf läuft über den lokalen Dashboard-Server (server.ps1), da die APIs Anfragen direkt
-      aus dem Browser aus CORS-Gründen ablehnen. Letzte Aktualisierung: <span id="k-zeit">–</span>.
-      Automatische Aktualisierung alle 5 Minuten.
+      Nr. 543/2013). Erzeugungsmix: Energy-Charts (Fraunhofer ISE). Eine GitHub Action
+      (<a href="sammle_daten.ps1" target="_blank" rel="noopener">sammle_daten.ps1</a>) holt beide mehrmals täglich
+      und speichert sie in preishistorie.json / erzeugung.json in diesem Repository – diese Seite liest nur noch
+      diese Dateien, ohne selbst live nachzufragen. Preisdatenstand lt. Archiv:
+      <span id="k-zeit">–</span>.
+    </p>
+    <p class="hinweis"><b>Quelle je Tag:</b> <span id="k-quellen-liste">–</span></p>
+    <p class="hinweis">
+      <b>Gleichwertigkeit der Quellen (geprüft 09.10.2026):</b> Stichprobenvergleich für den 09.10.2026 über alle
+      96 Viertelstunden: Der APG-Wert "MCPrice_Chart" (Market-Coupling-Auktionspreis) und der Preis von
+      Energy-Charts sind exakt identisch (0 EUR/MWh größte Abweichung) – zum Vergleich weicht der
+      EXAA-10:15-Auktionspreis (dieselbe APG-Datenquelle, erstes Preisfeld) am selben Tag um bis zu 65 EUR/MWh ab.
+      Das bestätigt: Diese Seite verwendet tatsächlich den Market-Coupling/SDAC-Preis (denselben wie die
+      Masterarbeit), nicht den EXAA-Auktionspreis, und Energy-Charts ist dafür eine gültige Ausweichquelle.
+    </p>
+    <p style="margin-top:10px">
+      <button id="csv-tage">Tageswerte als CSV</button>
+      <button id="csv-viertelstunden">Viertelstunden als CSV</button>
     </p>
     <p class="hinweis">
       <b>Einordnung (Jahresvergleich, Verlauf, Ökostrom):</b> Der Jahresvergleich nutzt den Durchschnittspreis des
-      Referenzjahres aus derselben Zeitreihe wie die Masterarbeit (daten.js) – ein Vergleich mit einem anderen Jahr,
-      keine exakte Trendlinie. Der Verlauf "letzte Tage" wird lokal im Browser gespeichert (nicht auf einem Server),
-      wächst also erst mit der Zeit, in der dieses Dashboard offen war, und ist nur auf diesem Gerät/Browser sichtbar.
-      Der Ökostrom-Anteil stammt ebenfalls von Energy-Charts (Erzeugungsmix Österreich) und zeigt den Anteil von Wind,
-      Sonne, Wasserkraft und Biomasse an der gesamten Stromerzeugung – nicht zwingend den tatsächlichen Strommix am
-      Netzanschluss der Anlage, da Österreich Strom auch importiert/exportiert.
+      Referenzjahres aus der einmalig vorberechneten Jahresrechnung – ein Vergleich mit einem anderen Jahr, keine
+      exakte Trendlinie. Der Verlauf "erfasste Tage" wird aus allen in preishistorie.json gesammelten Tagen live im
+      Browser nachgerechnet – geteilt über alle Geräte, nicht an einen Browser gebunden. Der Ökostrom-Anteil zeigt
+      den Anteil von Wind, Sonne, Wasserkraft und Biomasse an der gesamten Stromerzeugung – nicht zwingend den
+      tatsächlichen Strommix am Netzanschluss der Anlage, da Österreich Strom auch importiert/exportiert.
     </p>
     <p class="hinweis">
       <b>Vorteil des preisorientierten Betriebs (H1):</b> Vergleich der Tagesplanung mit dem gleichmäßigen Betrieb,
@@ -265,9 +313,9 @@
       Wind- und Sonnenstrom in Österreich) zeigt, wie viel sonstige Erzeugung das Netz gerade braucht – ist sie
       niedrig, ist viel erneuerbarer Strom im Netz. Die Kennzahl misst, welcher Anteil der heute bezogenen Energie
       (Elektrolyse plus Verdichtung) in Viertelstunden mit einer Residuallast unter dem Tagesmedian anfällt, analog
-      zur Kennzahl der System- und Netzdienlichkeit der Arbeit (Abschnitt 4.6.4 und 5.5). Live verfügbar sind die
-      Erzeugungsdaten nur bis zum aktuellen Zeitpunkt; die Kennzahl gilt deshalb "bis jetzt". Im Testmodus steht der
-      gesamte Tag aus daten.js zur Verfügung.
+      zur Kennzahl der System- und Netzdienlichkeit der Arbeit (Abschnitt 4.6.4 und 5.5). Verfügbar sind die
+      Erzeugungsdaten nur bis zu dem Zeitpunkt, zu dem die GitHub Action sie zuletzt gesammelt hat; die Kennzahl
+      gilt deshalb "bis dahin", nicht zwingend bis zur aktuellen Minute.
     </p>
     <p class="hinweis">
       <b>Niedrigpreis-Stunden (Art 6 Abs 3 DelVO (EU) 2023/1184):</b> Eine Viertelstunde zählt, wenn der Preis
@@ -278,7 +326,7 @@
       als erneuerbar. Bedeutung hätte die Regel erst nach einem Wegfall der Vermutung (Regime II).
     </p>
     <p class="hinweis">
-      <b>Vergleich mit fossilem Wasserstoff:</b> Der fossile Referenzwert stammt aus Tabelle 24 der Masterarbeit
+      <b>Vergleich mit fossilem Wasserstoff:</b> Der fossile Referenzwert stammt aus Tabelle 29 der Masterarbeit
       (Dampfreformierung von Erdgas einschließlich Zertifikatskosten, Gleichung 4.9.1, Abschnitt 4.9.2) und ist ein
       Jahresmittel aus Erdgaspreis (TTF) und CO₂-Zertifikatspreis, kein Live-Wert. Die Kachel "Kostenlücke/Faktor"
       vergleicht wie in der Arbeit die Gestehungskosten am Anlagenaustritt ohne Verdichtung und Pufferspeicher. Das
@@ -287,12 +335,22 @@
       sind deshalb nicht exakt dieselbe Vergleichsgrundlage. Die Förderprämien der Europäischen Wasserstoffbank
       (0,57 bis 1,48 EUR/kg) schließen die Lücke laut Arbeit nicht.
     </p>
+    <p class="hinweis">
+      <b>Mit Grünstromaufpreis (Untergrenze):</b> Im Modell der Arbeit (Regime II, Abschnitt 4.6.3) gilt ein
+      Grünstromaufpreis auf das <i>gesamte Vertragsvolumen</i> eines Wind-/PV-Stromlieferungsvertrags (PPA), das
+      größer ist als der tatsächliche Verbrauch, und Regime II hat eine eigene Fahrweise. Das lässt sich im
+      Tages-Dashboard nicht nachbilden. Diese Kachel zeigt deshalb nur eine <b>Untergrenze</b>: den Aufpreis,
+      multipliziert allein mit dem heute tatsächlich bezogenen Strom (Elektrolyse plus Verdichtung). Der
+      tatsächliche Aufschlag in Regime II wäre höher. Bei gleichbleibender Tagesmenge ändert ein fester Aufpreis
+      pro MWh die Reihenfolge der Viertelstunden nicht; der Fahrplan (welche Viertelstunden laufen) bleibt daher
+      gleich. Die Bandbreite 10/25 EUR/MWh stammt aus Tabelle 16 der Sensitivitätsanalyse (Abschnitt 4.8) der
+      Arbeit (0, 10, 25 EUR/MWh); die große Preiskachel oben bleibt davon unberührt.
+    </p>
   </details>
 </main>
 <footer></footer>
 
-<script src="../Masterarbeit/Berechnung/daten.js"></script>
-<script src="../Masterarbeit/Berechnung/modell.js"></script>
+<script src="modell.js"></script>
 <script>
 /* ----------------------------------------------------------------------
    Hilfsfunktionen
@@ -310,200 +368,66 @@ function wien(date) {
   return { datum: teile.year + '-' + teile.month + '-' + teile.day, hh: +teile.hour, mm: +teile.minute };
 }
 function uhrzeitLabel(i, n) { var minProTag = 24 * 60, m = Math.round(i * minProTag / n); var hh = Math.floor(m / 60) % 24, mm = m % 60; return (hh < 10 ? '0' : '') + hh + ':' + (mm < 10 ? '0' : '') + mm; }
-// 0-basierter Tag des Jahres (Jan 1 = 0), wie J.tag in daten.js (datenaufbereitung.py: dayofyear - 1)
+// 0-basierter Tag des Jahres (Jan 1 = 0)
 function tagDesJahres0(datum) {
   var w = wien(datum), jahr = +w.datum.slice(0, 4);
   var jahresanfang = Date.UTC(jahr, 0, 1), heute = Date.UTC(jahr, +w.datum.slice(5, 7) - 1, +w.datum.slice(8, 10));
   return Math.round((heute - jahresanfang) / 86400000);
 }
 
-/* ----------------------------------------------------------------------
-   Testmodus: ?test=JJJJ-MM-TT laedt den Tag aus daten.js statt Live-Daten.
-   -------------------------------------------------------------------- */
-var TESTMODUS = (function () {
-  var m = /[?&]test=(\d{4}-\d{2}-\d{2})/.exec(location.search);
-  return m ? m[1] : null;
-})();
-
-/* ----------------------------------------------------------------------
-   1. Fixkosten-Basis aus der Jahresrechnung der Masterarbeit (modell.js + daten.js)
-   -------------------------------------------------------------------- */
-function fixkostenBasis() {
-  var jahre = Object.keys(DATEN.jahre).map(Number).sort(function (a, b) { return b - a; });
-  var jahr = jahre[0];
-  var erg = rechneJahr(DATEN, jahr, STANDARD, { regime2: false }); // einmaliger Aufruf (rechenintensiv)
-  var r = erg.regime1.preisorientiert, K = r.kosten;
-  var rGl = erg.regime1.gleichmaessig, KGl = rGl.kosten;
-  var fixSumme = K.kapital + K.stack + K.betrieb + K.leistungspreis + K.pauschale + K.wasser + K.verdichter + K.speicher;
-  var fixSummeGl = KGl.kapital + KGl.stack + KGl.betrieb + KGl.leistungspreis + KGl.pauschale + KGl.wasser + KGl.verdichter + KGl.speicher;
-  var preisArr = DATEN.jahre[String(jahr)].preis;
-  var jahresmittel = preisArr.reduce(function (a, b) { return a + b; }, 0) / preisArr.length; // EUR/MWh
-  return {
-    jahr: jahr, H_jahr: r.H_kg, kappung: r.kappung == null ? 1.0 : r.kappung,
-    K: K, fixProKg: fixSumme / r.H_kg, jahresmittelCt: jahresmittel / 10,
-    H_jahrGleich: rGl.H_kg, KGleich: KGl, fixProKgGleich: fixSummeGl / rGl.H_kg
-  };
-}
-
-// Fossiler Referenzwert (Masterarbeit, Tabelle 24 / Gleichung 4.9.1, Abschnitt 4.9.2):
-// aus kapitel/werte_modell.tex (wf-fossil-JJJJ), bei neuer Modellrechnung aktualisieren.
 var FOSSIL = { 2022: 7.43, 2023: 3.11, 2024: 2.61, 2025: 2.77 };
 function fossilWert(jahr) {
   if (FOSSIL[jahr] !== undefined) return FOSSIL[jahr];
   var jahre = Object.keys(FOSSIL).map(Number);
   return FOSSIL[Math.max.apply(null, jahre)];
 }
+// Bandbreite Grünstromaufpreis laut Tabelle 16 der Arbeit (0, 10, 25 EUR/MWh); bei Änderung der Arbeit anpassen.
+var AUFPREISE = [10, 25];
+// "APG" wird als Praefix verglichen, weil nachtraeglich eingespielte Tage als
+// "APG (nachtraeglich eingespielt)" markiert sind, nicht nur als exaktes "APG" (siehe sammle_daten.ps1).
+function istApgQuelle(quelle) { return !!quelle && quelle.indexOf('APG') === 0; }
+// ?archiv=<pfad> laedt statt preishistorie.json eine andere Datei (Testmodus, da es hier kein daten.js gibt).
+function archivPfad() {
+  var m = /[?&]archiv=([^&]+)/.exec(location.search);
+  return m ? decodeURIComponent(m[1]) : 'preishistorie.json';
+}
 
 /* ----------------------------------------------------------------------
-   Eigene Tages-Historie (im Browser gespeichert, waechst mit der Nutzung).
-   Im Testmodus wird nichts gespeichert.
+   Daten laden: alles same-origin aus diesem Repository (kein CORS-Problem,
+   kein lokaler Server noetig). fixkosten-basis.json liegt fest (einmalig
+   aus der Masterarbeit vorberechnet); preishistorie.json/erzeugung.json
+   werden von einer GitHub Action mehrmals taeglich aktualisiert.
    -------------------------------------------------------------------- */
-var HIST_KEY = 'h2dashboard_historie_v1';
-function historieLaden() {
-  try { return JSON.parse(localStorage.getItem(HIST_KEY) || '[]'); } catch (e) { return []; }
+function ladeJson(pfad) {
+  return fetch(pfad + '?_=' + Date.now()).then(function (resp) {
+    if (!resp.ok) throw new Error(pfad + ': HTTP ' + resp.status);
+    return resp.json();
+  });
 }
-function historieAktualisieren(datum, mittelCt, h2preis, gestehung) {
-  var liste = historieLaden();
-  var idx = -1; for (var i = 0; i < liste.length; i++) if (liste[i].datum === datum) { idx = i; break; }
-  var eintrag = { datum: datum, preis: mittelCt, h2: h2preis, gestehung: gestehung };
-  if (idx >= 0) liste[idx] = eintrag; else liste.push(eintrag);
-  liste.sort(function (a, b) { return a.datum < b.datum ? -1 : (a.datum > b.datum ? 1 : 0); });
-  if (liste.length > 60) liste = liste.slice(liste.length - 60);
-  try { localStorage.setItem(HIST_KEY, JSON.stringify(liste)); } catch (e) {}
-  return liste;
+var basisDaten = null;
+function ladeFixkostenBasis() {
+  if (basisDaten) return Promise.resolve(basisDaten);
+  return ladeJson('fixkosten-basis.json').then(function (j) { basisDaten = j; return j; });
 }
 
 /* ----------------------------------------------------------------------
-   Live-Erzeugungsmix laden (Energy-Charts public_power, ueber den Server-Proxy).
-   Liefert die Rohdaten; oekostromAnteilSerie()/serieFinden() leiten daraus
-   einzelne Zeitreihen ab (fuer Oekostrom-Anteil und Residuallast).
-   -------------------------------------------------------------------- */
-function ladeErzeugungRoh() {
-  return fetch('/api/erzeugung').then(function (resp) {
-    return resp.json().then(function (j) {
-      if (!resp.ok || j.fehler) throw new Error(j.fehler || ('HTTP ' + resp.status));
-      return j;
-    });
-  }).then(function (j) {
-    if (!j.production_types || !j.unix_seconds) throw new Error('unerwartetes Datenformat');
-    console.info('Energy-Charts production_types (AT):', j.production_types.map(function (t) { return t.name; }));
-    return j;
-  });
-}
-// liefert {t, wert} je Zeitpunkt, wert = Summe der data[] aller Serien, deren Name auf re passt
-function serieFinden(j, re) {
-  var treffer = j.production_types.filter(function (t) { return re.test(t.name); });
-  if (!treffer.length) return null;
-  return j.unix_seconds.map(function (s, i) {
-    var summe = 0, irgendwas = false;
-    treffer.forEach(function (t) { var v = t.data[i]; if (v !== null && v !== undefined) { summe += v; irgendwas = true; } });
-    return { t: new Date(s * 1000), wert: irgendwas ? summe : null };
-  });
-}
-function oekostromAnteilSerie(j) {
-  var reNeu = /wind|solar|photovoltaic|hydro|wasser|biomass|geothermal/i, reAusschluss = /storage/i;
-  return j.unix_seconds.map(function (s, i) {
-    var gesamt = 0, erneuerbar = 0;
-    j.production_types.forEach(function (typ) {
-      var v = typ.data[i]; if (v === null || v === undefined || v < 0) return;
-      gesamt += v; if (reNeu.test(typ.name) && !reAusschluss.test(typ.name)) erneuerbar += v;
-    });
-    return { t: new Date(s * 1000), wert: gesamt > 0 ? erneuerbar / gesamt : null };
-  });
-}
-// Residuallast direkt, falls Energy-Charts eine Serie "Residual load" liefert, sonst
-// Last - Wind (onshore+offshore) - Solar, wie im Modell (daten.js: residuallast_MW).
-function residuallastSerie(j) {
-  var direkt = serieFinden(j, /residual/i);
-  if (direkt) return direkt;
-  var last = serieFinden(j, /^load$|load \(|gesamtlast|total.*load/i);
-  var wind = serieFinden(j, /wind/i);
-  var solar = serieFinden(j, /solar|photovoltaic/i);
-  if (!last) return null;
-  return last.map(function (p, i) {
-    if (p.wert === null) return { t: p.t, wert: null };
-    var w = (wind && wind[i] && wind[i].wert !== null) ? wind[i].wert : 0;
-    var s = (solar && solar[i] && solar[i].wert !== null) ? solar[i].wert : 0;
-    return { t: p.t, wert: p.wert - w - s };
-  });
-}
-// ordnet einer beliebigen Zeitreihe ({t,wert}) die n Viertelstunden eines Tages zu (naechstgelegener Zeitpunkt);
-// punkte ausserhalb des Zieltags werden ignoriert, fehlende Werte bleiben null.
-function serieAusrichten(punkte, zielDatum, n) {
-  if (!punkte || !punkte.length) return null;
-  var relevant = punkte.filter(function (p) { return wien(p.t).datum === zielDatum; });
-  if (relevant.length < 4) return null;
-  var aus = new Array(n);
-  for (var i = 0; i < n; i++) {
-    var zielMin = Math.round(i * 24 * 60 / n);
-    var beste = null, besteDist = Infinity;
-    relevant.forEach(function (p) {
-      var w = wien(p.t), pMin = w.hh * 60 + w.mm, dist = Math.abs(pMin - zielMin);
-      if (dist < besteDist) { besteDist = dist; beste = p; }
-    });
-    aus[i] = beste ? beste.wert : null;
-  }
-  return aus;
-}
-
-/* ----------------------------------------------------------------------
-   2. Preise laden: live (Energy-Charts ueber den Server) oder Testmodus
-      (derselbe Tag aus daten.js, Abschnitt 4 des Auftrags).
-   -------------------------------------------------------------------- */
-function ladeLivePreise() {
-  return fetch('/api/preise').then(function (resp) {
-    return resp.json().then(function (j) {
-      // server.ps1 liefert bei Fehlern bereits einen verstaendlichen Text, z. B.
-      // "Energy-Charts nicht erreichbar (HTTP 503)" -- den direkt anzeigen statt nur "HTTP 502".
-      if (!resp.ok || j.fehler) throw new Error(j.fehler || ('HTTP ' + resp.status));
-      return j;
-    });
-  }).then(function (j) {
-    var punkte = j.unix_seconds.map(function (s, i) { return { t: new Date(s * 1000), preis: j.price[i] }; });
-    var heuteDatum = wien(new Date()).datum;
-    var morgenDatum = wien(new Date(Date.now() + 86400000)).datum;
-    var heute = punkte.filter(function (p) { return wien(p.t).datum === heuteDatum; });
-    var morgen = punkte.filter(function (p) { return wien(p.t).datum === morgenDatum; });
-    return { heute: heute, morgen: morgen };
-  });
-}
-function ladeTag() {
-  if (TESTMODUS) {
-    var jahr = +TESTMODUS.slice(0, 4);
-    var J = DATEN.jahre[String(jahr)];
-    if (!J) return Promise.reject(new Error('Kein Testjahr ' + jahr + ' in daten.js'));
-    var doy = tagDesJahres0(new Date(TESTMODUS + 'T12:00:00Z'));
-    var extrahieren = function (d) {
-      var preise = [], stunde = [], residual = [];
-      for (var i = 0; i < J.n; i++) if (J.tag[i] === d) { preise.push(J.preis[i]); stunde.push(J.stunde[i]); residual.push(J.residual[i]); }
-      return preise.length ? { preise: preise, stunde: stunde, residual: residual } : null;
-    };
-    var heute = extrahieren(doy);
-    if (!heute) return Promise.reject(new Error('Datum ' + TESTMODUS + ' nicht in daten.js (Jahr ' + jahr + ')'));
-    var morgen = extrahieren(doy + 1) || { preise: [], stunde: [], residual: [] };
-    return Promise.resolve({ heute: heute, morgen: morgen, istTest: true, jahr: jahr, doyHeute: doy });
-  }
-  return ladeLivePreise().then(function (daten) {
-    function aufbereiten(punkte) { return { preise: punkte.map(function (p) { return p.preis; }), stunde: punkte.map(function (p) { return wien(p.t).hh; }), residual: null }; }
-    return { heute: aufbereiten(daten.heute), morgen: aufbereiten(daten.morgen), istTest: false, doyHeute: tagDesJahres0(new Date()) };
-  });
-}
-
-/* ----------------------------------------------------------------------
-   3. Tagesplanung (Reihungsverfahren) und gleichmaessiger Betrieb fuer
-      einen einzelnen Tag; gemeinsame Kostenrechnung in energiekostenTag().
+   Tagesplanung (Reihungsverfahren) und gleichmaessiger Betrieb fuer einen
+   einzelnen Tag; gemeinsame Kostenrechnung in energiekostenTag().
    -------------------------------------------------------------------- */
 function energiekostenTag(preise, plan, p) {
   var n = preise.length, e = entgelte(p), ab = p.ziel_kg_tag / n;
-  var H = 0, Eel = 0, Ev = 0, kEl = 0, kV = 0;
-  var eGes = new Array(n); // Energie (Elektrolyse + Verdichtung) je Viertelstunde, MWh (fuer H2-Kennzahl)
+  var H = 0, Eel = 0, Ev = 0, Esb = 0, kEl = 0, kV = 0, kSb = 0;
+  var eGes = new Array(n);
   for (var i = 0; i < n; i++) {
     H += plan.Hk[i];
     var eel = plan.Pel[i] * 0.25; Eel += eel; kEl += eel * preise[i];
+    // Bereitschaftsverbrauch im Stillstand (heisser Bereitschaftszustand, Modell 3.1): Anteil der Nennleistung je Viertelstunde ohne Erzeugung
+    var esb = plan.Pel[i] > 0 ? 0 : (p.bereitschaft || 0) * p.P_nenn * 0.25; Esb += esb; kSb += esb * preise[i];
     var zu = Math.max(plan.Hk[i] - ab, 0), ev = zu * p.verdichter_energie / 1000; Ev += ev; kV += ev * preise[i];
-    eGes[i] = eel + ev;
+    eGes[i] = eel + esb + ev;
   }
-  var entgelteArbeit = e.fvar * Eel, verdEnergie = kV + e.fvar * Ev;
+  var entgelteArbeit = e.fvar * (Eel + Esb), verdEnergie = kV + e.fvar * Ev;
+  kEl = kEl + kSb;
   var energieKosten = { energie: kEl, entgelteArbeit: entgelteArbeit, verdEnergie: verdEnergie };
   var summe = kEl + entgelteArbeit + verdEnergie;
   return { energieKosten: energieKosten, H: H, Eel: Eel, Ev: Ev, eGes: eGes, energieProKg: summe / H };
@@ -511,19 +435,11 @@ function energiekostenTag(preise, plan, p) {
 function planeTag(preise, basis, p) {
   var n = preise.length;
   var d = { n: n, anzahlTage: 1, tage: [[0, n]], preis: preise };
-  var verf = new Array(n).fill(basis.kappung * p.P_nenn);
+  var verf = new Array(n).fill(p.P_nenn);
   var plan = fahrplanPreis(d, p, 1, verf);
   var ek = energiekostenTag(preise, plan, p);
-  return { plan: plan, H: ek.H, energieKosten: ek.energieKosten, energieProKg: ek.energieProKg, eGes: ek.eGes };
+  return { plan: plan, H: ek.H, energieKosten: ek.energieKosten, energieProKg: ek.energieProKg, eGes: ek.eGes, Eel: ek.Eel, Ev: ek.Ev };
 }
-// Gleichmaessiger Betrieb (Referenzfall) fuer einen einzelnen Tag, mit demselben rotierenden
-// Ruhefenster wie die Jahresrechnung (modell.js, fahrplanGleichmaessig). Die Funktion nutzt bei
-// einem Tagesobjekt immer den Index di=0, daher zwei moegliche Wege, die reale Verschiebung
-// des Tages (Tag-des-Jahres * ruhe_versatz) abzubilden:
-//   Weg 1 (hier verwendet): die Stundenwerte vor dem Aufruf um h0 verschieben, sodass die
-//     interne Berechnung mit h0=0 (di=0) auf dieselbe Ruhefenster-Lage trifft wie im Jahresmodell.
-//   Weg 2 (Alternative, nicht verwendet): STANDARD mit {ruhe_stunden:[r], ruhe_versatz:0}
-//     aufrufen -- ergibt mit di=0 ebenfalls h0=0 und bildet die reale Tagesverschiebung NICHT ab.
 function planeTagGleich(preise, stundeArr, diReal, basis, p) {
   var n = preise.length;
   var r = p.ruhe_stunden[((diReal % p.ruhe_stunden.length) + p.ruhe_stunden.length) % p.ruhe_stunden.length];
@@ -536,11 +452,6 @@ function planeTagGleich(preise, stundeArr, diReal, basis, p) {
   return { plan: plan, H: ek.H, energieKosten: ek.energieKosten, energieProKg: ek.energieProKg, eGes: ek.eGes };
 }
 
-/* ----------------------------------------------------------------------
-   Gesamtauswertung eines Tages: H1 (Vorteil ggue. gleichmaessigem Betrieb),
-   H3 (Niedrigpreis-Viertelstunden) und der faire Vergleich mit fossilem
-   Wasserstoff (nur Gestehungskosten, ohne Verdichtung/Speicher).
-   -------------------------------------------------------------------- */
 function bewerteTagPreis(preise, stundeArr, diReal, basis, p) {
   var n = preise.length;
   var lauf = planeTag(preise, basis, p);
@@ -548,13 +459,11 @@ function bewerteTagPreis(preise, stundeArr, diReal, basis, p) {
   var aktiv = lauf.plan.Pel.map(function (P) { return P > 0; });
   var aktivGl = laufGl.plan.Pel.map(function (P) { return P > 0; });
 
-  // H1: Ersparnis gegenueber gleichmaessigem Betrieb (taegliche Version von Hypothese H1)
   var preisTP = basis.fixProKg + lauf.energieProKg;
   var preisGl = basis.fixProKgGleich + laufGl.energieProKg;
   var ersparnis = preisGl - preisTP;
   var ersparnisProzent = preisGl > 0 ? 100 * ersparnis / preisGl : null;
 
-  // Niedrigpreis-Viertelstunden, Art 6 Abs 3 DelVO (EU) 2023/1184 (Regel wie modell.js, Abschnitt 3)
   var eua = STANDARD.eua[basis.jahr];
   var schwelleRoh = 0.36 * eua, schwelleAnzeige = Math.max(20, schwelleRoh);
   var niedrig = preise.map(function (x) { return x <= 20 || x < schwelleRoh; });
@@ -563,7 +472,6 @@ function bewerteTagPreis(preise, stundeArr, diReal, basis, p) {
   for (var i = 0; i < n; i++) if (aktiv[i]) { energieAktivGesamt += lauf.eGes[i]; if (niedrig[i]) energieNiedrigAktiv += lauf.eGes[i]; }
   var anteilNiedrigAmBezug = energieAktivGesamt > 0 ? 100 * energieNiedrigAktiv / energieAktivGesamt : null;
 
-  // Vergleich mit fossilem Wasserstoff: Gestehungskosten ohne Verdichtung/Speicher (wie Tabelle 24)
   var K = basis.K;
   var gestehungFixProKg = (K.kapital + K.stack + K.betrieb + K.leistungspreis + K.pauschale + K.wasser) / basis.H_jahr;
   var gestehungEnergieProKg = (lauf.energieKosten.energie + lauf.energieKosten.entgelteArbeit) / lauf.H;
@@ -579,8 +487,6 @@ function bewerteTagPreis(preise, stundeArr, diReal, basis, p) {
     gestehung: gestehung, fossil: fw, kostenluecke: kostenluecke, faktor: faktor
   };
 }
-// H2: Anteil der Energie in Viertelstunden mit Residuallast unter dem Tagesmedian
-// (nur Viertelstunden mit vorhandenem Residuallastwert; modell.js: anteil_residual_unter_median)
 function residuallastKennzahl(residualArr, energieJeVH) {
   if (!residualArr) return null;
   var vorhanden = [];
@@ -598,7 +504,7 @@ function residuallastKennzahl(residualArr, energieJeVH) {
 }
 
 /* ----------------------------------------------------------------------
-   4. Chart (SVG), Tooltip, Tabelle
+   Chart (SVG), Tooltip, Tabelle
    -------------------------------------------------------------------- */
 function zeichneChart(svgEl, preise, aktiv, jetztIndex, hoehe, niedrig, schwelleCt) {
   var n = preise.length, W = 960, H = hoehe || 300, padL = 44, padR = 10, padT = 10, padB = 24;
@@ -610,47 +516,38 @@ function zeichneChart(svgEl, preise, aktiv, jetztIndex, hoehe, niedrig, schwelle
   function y(v) { return padT + innerH * (1 - (v - pmin) / (pmax - pmin)); }
   var y0 = y(0);
   var svg = '';
-  // Gitterlinien
   var schritte = 4;
   for (var g = 0; g <= schritte; g++) {
     var v = pmin + (pmax - pmin) * g / schritte, yy = y(v);
     svg += '<line x1="' + padL + '" y1="' + yy + '" x2="' + (W - padR) + '" y2="' + yy + '" stroke="#e8e8e8" stroke-width="1"/>';
     svg += '<text x="' + (padL - 6) + '" y="' + (yy + 4) + '" font-size="10" fill="#6b6b6b" text-anchor="end">' + z(v, 0) + '</text>';
   }
-  // Stundenmarken
   for (var h = 0; h <= 24; h += 3) {
     var idx = Math.round(h / 24 * (n - 1));
     svg += '<text x="' + x(idx) + '" y="' + (H - 6) + '" font-size="10" fill="#6b6b6b" text-anchor="middle">' + (h < 10 ? '0' : '') + h + '</text>';
   }
-  // Flaeche "Anlage laeuft" je Viertelstunde
   var breite = innerW / n;
   if (aktiv) {
     for (var i = 0; i < n; i++) if (aktiv[i]) {
       svg += '<rect x="' + (x(i) - breite / 2) + '" y="' + padT + '" width="' + breite + '" height="' + innerH + '" fill="#6d8f3f" opacity="0.22"/>';
     }
   }
-  // Niedrigpreis-Streifen (Art 6 Abs 3), schmaler Balken am unteren Rand, ueberdeckt die gruene Flaeche nicht
   if (niedrig) {
     var streifenH = 4;
     for (i = 0; i < n; i++) if (niedrig[i]) {
       svg += '<rect x="' + (x(i) - breite / 2) + '" y="' + (H - padB - streifenH) + '" width="' + breite + '" height="' + streifenH + '" fill="#33506b" opacity="0.85"/>';
     }
   }
-  // Nulllinie falls negative Preise
   if (pmin < 0) svg += '<line x1="' + padL + '" y1="' + y0 + '" x2="' + (W - padR) + '" y2="' + y0 + '" stroke="#bbb" stroke-width="1" stroke-dasharray="2,2"/>';
-  // Niedrigpreis-Schwelle (gestrichelt)
   if (schwelleCt !== undefined && schwelleCt !== null) {
     var ys = y(schwelleCt);
     svg += '<line x1="' + padL + '" y1="' + ys + '" x2="' + (W - padR) + '" y2="' + ys + '" stroke="#33506b" stroke-width="1" stroke-dasharray="3,3"/>';
   }
-  // Preislinie
   var pts = []; for (i = 0; i < n; i++) pts.push(x(i) + ',' + y(preise[i]));
   svg += '<polyline points="' + pts.join(' ') + '" fill="none" stroke="#33506b" stroke-width="2"/>';
-  // Jetzt-Marker
   if (jetztIndex !== null && jetztIndex !== undefined && jetztIndex >= 0 && jetztIndex < n) {
     svg += '<line x1="' + x(jetztIndex) + '" y1="' + padT + '" x2="' + x(jetztIndex) + '" y2="' + (H - padB) + '" stroke="#a8442a" stroke-width="1.5" stroke-dasharray="4,3"/>';
   }
-  // Rahmen
   svg += '<line x1="' + padL + '" y1="' + (H - padB) + '" x2="' + (W - padR) + '" y2="' + (H - padB) + '" stroke="#bbb" stroke-width="1"/>';
   svgEl.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
   svgEl.innerHTML = svg;
@@ -673,7 +570,6 @@ function aktiviereTooltip(svgEl, tipEl, preise, aktiv, niedrig, geom, n) {
 
 function datumKurz(iso) { var t = iso.split('-'); return t[2] + '.' + t[1] + '.'; }
 function datumLang(iso) { var t = iso.split('-'); return t[2] + '.' + t[1] + '.' + t[0]; }
-// waehlt bei vielen Tagen eine duennere Auswahl an Indizes fuer X-Achsen-Beschriftungen aus
 function waehleLabelIndizes(n, max) {
   if (n <= max) { var a = []; for (var i = 0; i < n; i++) a.push(i); return a; }
   var schritt = (n - 1) / (max - 1), aus = [];
@@ -681,7 +577,6 @@ function waehleLabelIndizes(n, max) {
   return aus;
 }
 
-// Mini-Liniendiagramm mit Y-Achse (Werte) und X-Achse (Datum) fuer die eigene Tageshistorie.
 function zeichneSparkline(svgEl, eintraege, heuteIdx, tipEl) {
   var n = eintraege.length, werte = eintraege.map(function (e) { return e.preis; });
   var W = 600, H = 110, padL = 34, padR = 10, padT = 18, padB = 26;
@@ -705,7 +600,11 @@ function zeichneSparkline(svgEl, eintraege, heuteIdx, tipEl) {
   for (i = 0; i < n; i++) {
     var r = i === heuteIdx ? 4 : 2.5, farbe = i === heuteIdx ? '#a8442a' : '#33506b';
     svg += '<circle cx="' + x(i) + '" cy="' + y(werte[i]) + '" r="' + r + '" fill="' + farbe + '"/>';
-    if (zeigeWerte) svg += '<text x="' + x(i) + '" y="' + (y(werte[i]) - 8) + '" font-size="9.5" fill="' + farbe + '" text-anchor="middle">' + z(werte[i], 1) + '</text>';
+    if (zeigeWerte) {
+      // Am linken/rechten Rand nicht mittig ausrichten, sonst ragt das Label in die Achsenbeschriftung hinein.
+      var anker = i === 0 ? 'start' : (i === n - 1 ? 'end' : 'middle'), dx = i === 0 ? 3 : (i === n - 1 ? -3 : 0);
+      svg += '<text x="' + (x(i) + dx) + '" y="' + (y(werte[i]) - 8) + '" font-size="9.5" fill="' + farbe + '" text-anchor="' + anker + '">' + z(werte[i], 1) + '</text>';
+    }
   }
   svgEl.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
   svgEl.innerHTML = svg;
@@ -722,9 +621,6 @@ function zeichneSparkline(svgEl, eintraege, heuteIdx, tipEl) {
     svgEl.onmouseleave = function () { tipEl.style.display = 'none'; };
   }
 }
-// Wasserstoffpreis der erfassten Tage (dieselbe Zahl wie die große Kachel "1 kg Wasserstoff
-// kostet heute", inkl. Verdichtung/Speicher) mit gestrichelter Fossil-Linie, inkl. Y-Achse
-// (EUR/kg) und X-Achse (Datum je Tag).
 function zeichneFossilChart(svgEl, punkte, heuteIdx, fossil, tipEl) {
   var n = punkte.length, W = 600, H = 150, padL = 38, padR = 10, padT = 18, padB = 26;
   var werte = punkte.map(function (p) { return p.h2; });
@@ -752,7 +648,11 @@ function zeichneFossilChart(svgEl, punkte, heuteIdx, fossil, tipEl) {
     for (i = 0; i < n; i++) {
       var r = i === heuteIdx ? 4 : 2.5, farbe = i === heuteIdx ? '#a8442a' : '#33506b';
       svg += '<circle cx="' + x(i) + '" cy="' + y(werte[i]) + '" r="' + r + '" fill="' + farbe + '"/>';
-      if (zeigeWerte) svg += '<text x="' + x(i) + '" y="' + (y(werte[i]) - 8) + '" font-size="9.5" fill="' + farbe + '" text-anchor="middle">' + z(werte[i], 2) + '</text>';
+      if (zeigeWerte) {
+        // Am linken/rechten Rand nicht mittig ausrichten, sonst ragt das Label in die Achsenbeschriftung hinein.
+        var anker = i === 0 ? 'start' : (i === n - 1 ? 'end' : 'middle'), dx = i === 0 ? 3 : (i === n - 1 ? -3 : 0);
+        svg += '<text x="' + (x(i) + dx) + '" y="' + (y(werte[i]) - 8) + '" font-size="9.5" fill="' + farbe + '" text-anchor="' + anker + '">' + z(werte[i], 2) + '</text>';
+      }
     }
   } else if (n === 1) {
     svg += '<circle cx="' + x(0) + '" cy="' + y(werte[0]) + '" r="4" fill="#a8442a"/>';
@@ -782,10 +682,8 @@ function fuelleTabelle(tbody, preise, aktiv, niedrig, n) {
   tbody.innerHTML = h;
 }
 
-/* ----------------------------------------------------------------------
-   Ansicht (Heute/Morgen) im Chart anzeigen
-   -------------------------------------------------------------------- */
 var ansichten = {};
+var histGlobal = [], basisGlobalJson = null, heatmapZeilen = [], heatmapModus = 'betrieb';
 function zeigeAnsicht(tag) {
   var a = ansichten[tag];
   if (!a) return;
@@ -799,11 +697,9 @@ function zeigeAnsicht(tag) {
   document.getElementById('chart-hinweis').textContent = tag === 'heute'
     ? 'Die grün hinterlegten Zeiten sind die günstigsten Viertelstunden des Tages – genau dann läuft die Anlage.'
     : 'Prognose für morgen: Die Börsenpreise für morgen stehen schon fest, die Anlage hat aber noch nicht wirklich so gelaufen.';
+  document.getElementById('tabelle-quelle').textContent = 'Quelle (' + (tag === 'heute' ? 'heute' : 'morgen') + '): ' + (a.quelle || '–') + (a.quelle && !istApgQuelle(a.quelle) ? ' (Ausweichquelle)' : '');
 }
 
-/* ----------------------------------------------------------------------
-   5. Kostenbalken
-   -------------------------------------------------------------------- */
 function zeichneBalken(el, legEl, sumEl, basis, energieKosten, H_heute) {
   var posten = [
     ['kapital', basis.K.kapital / basis.H_jahr], ['stack', basis.K.stack / basis.H_jahr], ['betrieb', basis.K.betrieb / basis.H_jahr],
@@ -823,10 +719,214 @@ function zeichneBalken(el, legEl, sumEl, basis, energieKosten, H_heute) {
 }
 
 /* ----------------------------------------------------------------------
-   6. Ablauf
+   Archiv-Hilfsfunktionen: preishistorie.json/erzeugung.json in die Form
+   bringen, die bewerteTagPreis()/residuallastKennzahl() erwarten.
    -------------------------------------------------------------------- */
-var basis = null, letzterLauf = null;
+function tagAusArchiv(preisArchiv, datum) {
+  var eintrag = preisArchiv.tage.filter(function (t) { return t.datum === datum; })[0];
+  if (!eintrag || eintrag.n < 90) return null;
+  var werte = eintrag.werte.slice().sort(function (a, b) { return a.unix - b.unix; });
+  return {
+    preise: werte.map(function (w) { return w.preis; }),
+    stunde: werte.map(function (w) { return wien(new Date(w.unix * 1000)).hh; }),
+    unix: werte.map(function (w) { return w.unix; }),
+    quelle: eintrag.quelle
+  };
+}
+// Ordnet die (echten, chronologischen) Viertelstunden eines Tages den 96 festen
+// Tageszeit-Spalten 00:00, 00:15, … 23:45 zu (Wiener Ortszeit der Viertelstunde, nicht ihr Index).
+// Das behandelt Zeitumstellungstage automatisch richtig, ohne die betroffene Stunde fest einzubauen:
+// Faellt eine Spalte zweimal (Ende Sommerzeit, n=100), wird der Preis gemittelt und "aktiv" mit ODER
+// verknuepft; faellt eine Spalte nie (Beginn Sommerzeit, n=92), bleibt sie leer (null = grau).
+function spaltenFuerTag(preise, unixArr, aktiv) {
+  var spalten = new Array(96);
+  for (var c = 0; c < 96; c++) spalten[c] = { summe: 0, n: 0, aktiv: false };
+  for (var i = 0; i < preise.length; i++) {
+    var w = wien(new Date(unixArr[i] * 1000));
+    var c2 = w.hh * 4 + Math.floor(w.mm / 15);
+    spalten[c2].summe += preise[i]; spalten[c2].n++;
+    if (aktiv[i]) spalten[c2].aktiv = true;
+  }
+  return spalten.map(function (s) { return s.n === 0 ? null : { preis: s.summe / s.n, aktiv: s.aktiv }; });
+}
+function erzeugungFuerTag(erzArchiv, datum, n, feld) {
+  if (!erzArchiv) return null;
+  var eintrag = erzArchiv.tage.filter(function (t) { return t.datum === datum; })[0];
+  if (!eintrag) return null;
+  var werte = eintrag.werte.slice().sort(function (a, b) { return a.unix - b.unix; });
+  var aus = new Array(n);
+  for (var i = 0; i < n; i++) {
+    var zielMin = Math.round(i * 24 * 60 / n), beste = null, besteDist = Infinity;
+    werte.forEach(function (w) {
+      var wZeit = wien(new Date(w.unix * 1000)), pMin = wZeit.hh * 60 + wZeit.mm, dist = Math.abs(pMin - zielMin);
+      if (dist < besteDist) { besteDist = dist; beste = w; }
+    });
+    aus[i] = beste ? beste[feld] : null;
+  }
+  return aus;
+}
 
+/* ----------------------------------------------------------------------
+   Ampel (Hinweis auf den Datenstand)
+   -------------------------------------------------------------------- */
+function zeigeAmpel(preisArchiv, heuteEintrag, tagMorgenVorhanden) {
+  var el = document.getElementById('ampel');
+  var jetzt = new Date();
+  var aktualisiert = preisArchiv.aktualisiert ? new Date(preisArchiv.aktualisiert) : null;
+  var alterH = aktualisiert ? (jetzt - aktualisiert) / 3600000 : Infinity;
+  var heuteUnvollstaendig = !heuteEintrag || heuteEintrag.n < 90;
+  var w = wien(jetzt);
+  var nach1430 = w.hh > 14 || (w.hh === 14 && w.mm >= 30);
+  var heuteNurAusweichquelle = heuteEintrag && !istApgQuelle(heuteEintrag.quelle);
+  var zeitText = aktualisiert ? (aktualisiert.toLocaleString('de-AT', { day: '2-digit', month: '2-digit' }) + ', ' + aktualisiert.toLocaleString('de-AT', { hour: '2-digit', minute: '2-digit' }) + ' Uhr') : 'unbekannt';
+  var farbe, text;
+  if (alterH > 6 || heuteUnvollstaendig) {
+    farbe = 'rot'; text = 'Daten veraltet: letzte Aktualisierung ' + zeitText;
+  } else if ((nach1430 && !tagMorgenVorhanden) || heuteNurAusweichquelle) {
+    farbe = 'gelb';
+    text = (nach1430 && !tagMorgenVorhanden) ? 'Preise für morgen fehlen noch' : 'heute aus Ausweichquelle Energy-Charts';
+  } else {
+    farbe = 'gruen';
+    text = 'Daten aktuell · Stand ' + zeitText + (tagMorgenVorhanden ? ' · Preise für morgen da' : '');
+  }
+  el.className = 'ampel ampel-' + farbe;
+  el.textContent = text;
+}
+
+/* ----------------------------------------------------------------------
+   Heatmap "Wann die Anlage gelaufen ist"
+   -------------------------------------------------------------------- */
+function farbeBetrieb(zelle) {
+  if (!zelle) return '#ddd';
+  return zelle.aktiv ? '#6d8f3f' : '#eef0ea';
+}
+function farbePreis(zelle, min, max) {
+  if (!zelle) return '#ddd';
+  var t = max > min ? (zelle.preis - min) / (max - min) : 0.5;
+  t = Math.max(0, Math.min(1, t));
+  var hell = [222, 232, 240], dunkel = [21, 42, 64];
+  var r = Math.round(hell[0] + (dunkel[0] - hell[0]) * t), g = Math.round(hell[1] + (dunkel[1] - hell[1]) * t), b = Math.round(hell[2] + (dunkel[2] - hell[2]) * t);
+  return 'rgb(' + r + ',' + g + ',' + b + ')';
+}
+function zeichneHeatmapAchse(svgEl) {
+  var W = 960, labelW = 110, H = 20, innerW = W - labelW - 10, svg = '';
+  for (var h = 0; h <= 24; h += 3) {
+    var x = labelW + innerW * h / 24, anchor = h === 0 ? 'start' : (h === 24 ? 'end' : 'middle');
+    svg += '<text x="' + x + '" y="14" font-size="10" fill="#6b6b6b" text-anchor="' + anchor + '">' + (h < 10 ? '0' : '') + h + ' Uhr</text>';
+  }
+  svgEl.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+  svgEl.innerHTML = svg;
+}
+function zeichneHeatmap(svgEl, zeilen, modus) {
+  var W = 960, labelW = 110, rowH = 18, innerW = W - labelW - 10, H = Math.max(zeilen.length * rowH, rowH);
+  var breite = innerW / 96, alleWerte = [];
+  zeilen.forEach(function (zl) { zl.spalten.forEach(function (s) { if (s) alleWerte.push(s.preis); }); });
+  var min = alleWerte.length ? Math.min.apply(null, alleWerte) : 0, max = alleWerte.length ? Math.max.apply(null, alleWerte) : 1;
+  var svg = '';
+  zeilen.forEach(function (zeile, r) {
+    var y = r * rowH;
+    svg += '<text x="' + (labelW - 8) + '" y="' + (y + rowH / 2 + 4) + '" font-size="11" fill="#1d1d1d" text-anchor="end">' + datumKurz(zeile.datum) + (zeile.istPrognose ? ' (Prog.)' : '') + '</text>';
+    for (var c = 0; c < 96; c++) {
+      var zelle = zeile.spalten[c], farbe = modus === 'preis' ? farbePreis(zelle, min, max) : farbeBetrieb(zelle);
+      svg += '<rect data-row="' + r + '" data-col="' + c + '" x="' + (labelW + breite * c) + '" y="' + y + '" width="' + (breite + 0.3) + '" height="' + (rowH - 1) + '" fill="' + farbe + '"/>';
+    }
+  });
+  svgEl.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+  svgEl.setAttribute('height', H);
+  svgEl.innerHTML = svg;
+
+  var tip = document.getElementById('tooltip-heatmap'), scrollBox = document.getElementById('heatmap-scroll');
+  svgEl.onmousemove = function (ev) {
+    var t = ev.target;
+    if (!t || !t.hasAttribute || !t.hasAttribute('data-col')) { tip.style.display = 'none'; return; }
+    var r = +t.getAttribute('data-row'), c = +t.getAttribute('data-col'), zeile = zeilen[r], zelle = zeile.spalten[c];
+    var hh = Math.floor(c / 4), mm = (c % 4) * 15, zeit = (hh < 10 ? '0' : '') + hh + ':' + (mm < 10 ? '0' : '') + mm;
+    var rect = scrollBox.getBoundingClientRect();
+    tip.style.display = 'block';
+    tip.style.left = (ev.clientX - rect.left + 12) + 'px';
+    tip.style.top = (ev.clientY - rect.top - 10 + scrollBox.scrollTop) + 'px';
+    tip.textContent = !zelle
+      ? (datumLang(zeile.datum) + ', ' + zeit + ' Uhr · Zeitumstellung: diese Stunde gibt es an diesem Tag nicht')
+      : (datumLang(zeile.datum) + ', ' + zeit + ' Uhr · ' + z(zelle.preis / 10, 1) + ' ct/kWh · Anlage ' + (zelle.aktiv ? 'läuft' : 'steht'));
+  };
+  svgEl.onmouseleave = function () { tip.style.display = 'none'; };
+
+  var legEl = document.getElementById('heatmap-legende');
+  if (modus === 'preis') {
+    legEl.innerHTML = '<span><i style="background:' + farbePreis({ preis: min }, min, max) + '"></i> ' + z(min / 10, 1) + ' ct/kWh (billig)</span>'
+      + '<span><i style="background:' + farbePreis({ preis: max }, min, max) + '"></i> ' + z(max / 10, 1) + ' ct/kWh (teuer)</span>'
+      + '<span><i style="background:#ddd"></i> Zeitumstellung: Stunde fehlt an diesem Tag</span>';
+  } else {
+    legEl.innerHTML = '<span><i style="background:#6d8f3f"></i> Anlage läuft</span>'
+      + '<span><i style="background:#eef0ea;border:1px solid #ccc"></i> Anlage steht</span>'
+      + '<span><i style="background:#ddd"></i> Zeitumstellung: Stunde fehlt an diesem Tag</span>';
+  }
+}
+function aktualisiereHeatmapSummary(erfassteZeilen) {
+  var von = 40, bis = 63, aktiv = 0, gesamt = 0; // Spalten 40..63 = 10:00 bis 15:45 Uhr
+  erfassteZeilen.forEach(function (zeile) {
+    for (var c = von; c <= bis; c++) { var zl = zeile.spalten[c]; if (!zl) continue; gesamt++; if (zl.aktiv) aktiv++; }
+  });
+  document.getElementById('heatmap-summary').textContent = gesamt > 0
+    ? ('Anteil der Betriebszeit zwischen 10 und 16 Uhr: ' + z(100 * aktiv / gesamt, 0) + ' % (über ' + erfassteZeilen.length + ' erfasste Tage)')
+    : 'Noch keine Daten für diese Auswertung.';
+}
+
+/* ----------------------------------------------------------------------
+   CSV-Export (Blob, Excel de-AT: Semikolon, Dezimalkomma, UTF-8-BOM)
+   -------------------------------------------------------------------- */
+function csvZahl(x, n) { if (x === null || x === undefined || isNaN(x)) return ''; return x.toFixed(n).replace('.', ','); }
+function csvFeld(s) { s = String(s === null || s === undefined ? '' : s); return /[;"\n]/.test(s) ? ('"' + s.replace(/"/g, '""') + '"') : s; }
+function csvKopf(basis) {
+  return [
+    '# Quelle der Preise: APG Transparency (Market-Coupling-Auktionspreis); Ausweichquelle Energy-Charts, Quelle je Tag in Spalte "Quelle Strompreis"',
+    '# Modellversion: ' + MODELL_VERSION,
+    '# Basisjahr der Fixkosten: ' + basis.jahr,
+    '# fixkosten-basis.json erzeugt am: ' + basisGlobalJson.erzeugt,
+    '# Zeitpunkt des Exports: ' + new Date().toLocaleString('de-AT'),
+    '# Hinweis: berechnete Herstellungskosten-Schätzung, kein gehandelter Preis; mit dem aktuellen Modellstand nachgerechnet'
+  ];
+}
+function erzeugeCsvTage() {
+  var basis = basisGlobalJson.basis;
+  var zeilen = ['Datum;Quelle Strompreis;Ø Börsenpreis EUR/MWh;Betriebsviertelstunden;erzeugter Wasserstoff kg;Ø bezahlter Strompreis EUR/MWh;Preis preisorientiert EUR/kg;Preis gleichmäßig EUR/kg;Vorteil EUR/kg;Gestehungskosten ab Anlage EUR/kg;fossiler Referenzwert EUR/kg;Niedrigpreis-Viertelstunden;Anteil Strom bei niedriger Residuallast in %'];
+  histGlobal.forEach(function (h) {
+    var betriebsVH = h.aus.aktiv.reduce(function (s, v) { return s + (v ? 1 : 0); }, 0);
+    var bezahlt = h.aus.lauf.Eel > 0 ? (h.aus.lauf.energieKosten.energie / h.aus.lauf.Eel) : null;
+    zeilen.push([
+      h.datum, csvFeld(h.quelle), csvZahl(h.mittelEurMwh, 2), betriebsVH, csvZahl(h.aus.lauf.H, 1),
+      csvZahl(bezahlt, 2), csvZahl(h.h2, 2), csvZahl(h.aus.preisGl, 2), csvZahl(h.aus.ersparnis, 2),
+      csvZahl(h.gestehung, 2), csvZahl(h.aus.fossil, 2), h.aus.nNiedrig,
+      (h.residualAnteil === null || h.residualAnteil === undefined) ? '' : csvZahl(h.residualAnteil, 0)
+    ].join(';'));
+  });
+  return csvKopf(basis).concat(zeilen).join('\r\n');
+}
+function erzeugeCsvViertelstunden() {
+  var basis = basisGlobalJson.basis;
+  var zeilen = ['Datum;Uhrzeit (Wien);Unix-Zeit;Preis EUR/MWh;Anlage läuft (1/0);Leistung MW;Niedrigpreis Art 6 Abs 3 (1/0);Ökostromanteil;Residuallast MW'];
+  histGlobal.forEach(function (h) {
+    var n = h.td.preise.length;
+    for (var i = 0; i < n; i++) {
+      var w = wien(new Date(h.td.unix[i] * 1000)), uhrzeit = (w.hh < 10 ? '0' : '') + w.hh + ':' + (w.mm < 10 ? '0' : '') + w.mm;
+      var oekoI = h.oeko && h.oeko[i] !== null && h.oeko[i] !== undefined ? csvZahl(h.oeko[i], 3) : '';
+      var residI = h.residual && h.residual[i] !== null && h.residual[i] !== undefined ? csvZahl(h.residual[i], 0) : '';
+      zeilen.push([h.datum, uhrzeit, h.td.unix[i], csvZahl(h.td.preise[i], 2), h.aus.aktiv[i] ? 1 : 0, csvZahl(h.aus.lauf.plan.Pel[i], 3), h.aus.niedrig[i] ? 1 : 0, oekoI, residI].join(';'));
+    }
+  });
+  return csvKopf(basis).concat(zeilen).join('\r\n');
+}
+function ladeCsvHerunter(inhalt, dateiname) {
+  var blob = new Blob(['﻿' + inhalt], { type: 'text/csv;charset=utf-8' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a'); a.href = url; a.download = dateiname;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+}
+
+/* ----------------------------------------------------------------------
+   Ablauf
+   -------------------------------------------------------------------- */
 function uhrAktualisieren() {
   var w = wien(new Date());
   document.getElementById('uhr').textContent = w.datum.split('-').reverse().join('.') + ', ' + (w.hh < 10 ? '0' : '') + w.hh + ':' + (w.mm < 10 ? '0' : '') + w.mm + ' Uhr (Europe/Vienna)';
@@ -834,138 +934,138 @@ function uhrAktualisieren() {
 
 function aktualisieren() {
   var status = document.getElementById('status'), btn = document.getElementById('refresh');
-  status.className = ''; status.textContent = 'Lade aktuelle Day-Ahead-Preise …'; btn.disabled = true;
-  if (!basis) { try { basis = fixkostenBasis(); } catch (err) { status.className = 'fehler'; status.textContent = 'Fehler bei der Fixkosten-Berechnung: ' + err.message; btn.disabled = false; return; } }
+  status.className = ''; status.textContent = 'Lade Daten aus dem Archiv …'; btn.disabled = true;
 
-  var banner = document.getElementById('testbanner');
-  if (TESTMODUS) { banner.style.display = ''; banner.textContent = 'TESTMODUS – Daten vom ' + TESTMODUS + ' aus der Masterarbeit (keine Live-Preise, keine Speicherung)'; }
-  else { banner.style.display = 'none'; }
+  ladeFixkostenBasis().then(function (basisJson) {
+    basisGlobalJson = basisJson;
+    var basis = basisJson.basis;
+    document.getElementById('untertitel').textContent = z(STANDARD.P_nenn, 1) + '-MW-Elektrolyseur Salzburg · Basisfall der Masterarbeit (J. Grasl)';
+    document.getElementById('k-zielmenge').textContent = z(STANDARD.ziel_kg_tag, 0);
+    document.getElementById('k-nutzungsdauer').textContent = STANDARD.nutzungsdauer;
+    document.getElementById('k-basisjahr2').textContent = basis.jahr;
+    document.getElementById('k-version').textContent = MODELL_VERSION;
+    document.getElementById('k-basis-erzeugt').textContent = basisJson.erzeugt;
+    document.getElementById('e-jahr').textContent = basis.jahr;
 
-  document.getElementById('untertitel').textContent = z(STANDARD.P_nenn, 1) + '-MW-Elektrolyseur Salzburg · Basisfall der Masterarbeit (J. Grasl) · rechnet mit den tagesaktuellen Strompreisen von heute';
-  document.getElementById('k-zielmenge').textContent = z(STANDARD.ziel_kg_tag, 0);
-  document.getElementById('k-nutzungsdauer').textContent = STANDARD.nutzungsdauer;
-  document.getElementById('k-basisjahr2').textContent = basis.jahr;
-  document.getElementById('k-version').textContent = MODELL_VERSION;
-  document.getElementById('k-kappung').textContent = z(100 * basis.kappung, 0) + ' %';
-  document.getElementById('e-jahr').textContent = basis.jahr;
+    return Promise.all([ladeJson(archivPfad()), ladeJson('erzeugung.json').catch(function () { return null; })])
+      .then(function (ergebnisse) {
+        var preisArchiv = ergebnisse[0], erzArchiv = ergebnisse[1];
+        var heuteDatum = wien(new Date()).datum, morgenDatum = wien(new Date(Date.now() + 86400000)).datum;
+        var tagHeute = tagAusArchiv(preisArchiv, heuteDatum);
+        var tagMorgen = tagAusArchiv(preisArchiv, morgenDatum);
+        var heuteEintrag = preisArchiv.tage.filter(function (t) { return t.datum === heuteDatum; })[0];
+        zeigeAmpel(preisArchiv, heuteEintrag, !!tagMorgen);
+        if (!tagHeute) throw new Error('keine Preisdaten für heute (' + heuteDatum + ') im Archiv – evtl. hat die taegliche Sammlung noch nicht gelaufen');
+        var n = tagHeute.preise.length, diHeute = tagDesJahres0(new Date(heuteDatum + 'T12:00:00Z'));
+        var aus = bewerteTagPreis(tagHeute.preise, tagHeute.stunde, diHeute, basis, STANDARD);
+        var w = wien(new Date()), jetztIndex = Math.floor((w.hh * 60 + w.mm) / (24 * 60 / n));
+        ansichten.heute = { preise: tagHeute.preise, aktiv: aus.aktiv, jetztIndex: jetztIndex, niedrig: aus.niedrig, schwelleAnzeige: aus.schwelleAnzeige, quelle: tagHeute.quelle };
 
-  ladeTag().then(function (tag) {
-    if (tag.heute.preise.length < 4) throw new Error('keine Preisdaten für heute verfügbar');
-    var preise = tag.heute.preise, stundeArr = tag.heute.stunde, n = preise.length;
-    var diHeute = tag.doyHeute;
-    var aus = bewerteTagPreis(preise, stundeArr, diHeute, basis, STANDARD);
-    letzterLauf = aus.lauf;
-    var w = wien(new Date());
-    var jetztIndex = (TESTMODUS) ? null : Math.floor((w.hh * 60 + w.mm) / (24 * 60 / n));
-    ansichten.heute = { preise: preise, aktiv: aus.aktiv, jetztIndex: jetztIndex, niedrig: aus.niedrig, schwelleAnzeige: aus.schwelleAnzeige };
+        var gruenZusatz = AUFPREISE.map(function (auf) { return auf * (aus.lauf.Eel + aus.lauf.Ev) / aus.lauf.H; });
+        document.getElementById('e-gruenstrom').textContent = '+ ' + z(gruenZusatz[0], 2) + ' €/kg bei ' + AUFPREISE[0] + ' €/MWh · + ' + z(gruenZusatz[1], 2) + ' €/kg bei ' + AUFPREISE[1] + ' €/MWh';
+        document.getElementById('e-gruenstrom-unter').textContent = 'Untergrenze, nur auf den heute bezogenen Strom · Hauptkachel bleibt unverändert';
 
-    // Haupt-Kacheln (heute)
-    document.getElementById('k-preis').textContent = z(aus.preisTP, 2) + ' €/kg';
-    document.getElementById('k-preis-unter').textContent = 'Davon Fixkosten der Anlage ' + z(basis.fixProKg, 2) + ' €/kg + Stromkosten heute ' + z(aus.lauf.energieProKg, 2) + ' €/kg';
-    if (TESTMODUS) {
-      document.getElementById('k-spot').textContent = '–';
-      document.getElementById('k-status').textContent = 'Testmodus';
-      document.getElementById('k-status').className = 'badge inaktiv';
-      document.getElementById('k-status-unter').textContent = 'kein Echtzeit-Status im Testmodus';
-    } else {
-      document.getElementById('k-spot').textContent = z(preise[Math.min(jetztIndex, n - 1)] / 10, 1) + ' ct/kWh';
-      var istAktiv = aus.aktiv[Math.min(jetztIndex, n - 1)];
-      var badge = document.getElementById('k-status');
-      badge.textContent = istAktiv ? 'läuft gerade' : 'pausiert gerade';
-      badge.className = 'badge ' + (istAktiv ? 'aktiv' : 'inaktiv');
-      document.getElementById('k-status-unter').textContent = istAktiv ? 'Strom ist jetzt günstig' : 'Strom ist jetzt zu teuer';
-    }
+        document.getElementById('k-preis').textContent = z(aus.preisTP, 2) + ' €/kg';
+        document.getElementById('k-preis-unter').textContent = 'Davon Fixkosten der Anlage ' + z(basis.fixProKg, 2) + ' €/kg + Stromkosten heute ' + z(aus.lauf.energieProKg, 2) + ' €/kg';
+        document.getElementById('k-spot').textContent = z(tagHeute.preise[Math.min(jetztIndex, n - 1)] / 10, 1) + ' ct/kWh';
+        var istAktiv = aus.aktiv[Math.min(jetztIndex, n - 1)];
+        var badge = document.getElementById('k-status');
+        badge.textContent = istAktiv ? 'läuft gerade' : 'pausiert gerade';
+        badge.className = 'badge ' + (istAktiv ? 'aktiv' : 'inaktiv');
+        document.getElementById('k-status-unter').textContent = istAktiv ? 'Strom ist jetzt günstig' : 'Strom ist jetzt zu teuer';
 
-    zeichneBalken(document.getElementById('k-balken'), document.getElementById('k-legende'), document.getElementById('k-balken-summe'), basis, aus.lauf.energieKosten, aus.lauf.H);
+        zeichneBalken(document.getElementById('k-balken'), document.getElementById('k-legende'), document.getElementById('k-balken-summe'), basis, aus.lauf.energieKosten, aus.lauf.H);
 
-    // H1: Vorteil des preisorientierten Betriebs (heute)
-    var h1El = document.getElementById('e-h1'), h1UnterEl = document.getElementById('e-h1-unter');
-    if (aus.ersparnis > 0) { h1El.textContent = '− ' + z(aus.ersparnis, 2) + ' €/kg (' + z(aus.ersparnisProzent, 0) + ' %)'; }
-    else { h1El.textContent = 'kein Vorteil heute'; }
-    h1UnterEl.textContent = 'gleichmäßiger Betrieb heute: ' + z(aus.preisGl, 2) + ' €/kg';
+        var h1El = document.getElementById('e-h1'), h1UnterEl = document.getElementById('e-h1-unter');
+        if (aus.ersparnis > 0) { h1El.textContent = '− ' + z(aus.ersparnis, 2) + ' €/kg (' + z(aus.ersparnisProzent, 0) + ' %)'; }
+        else { h1El.textContent = 'kein Vorteil heute'; }
+        h1UnterEl.textContent = 'gleichmäßiger Betrieb heute: ' + z(aus.preisGl, 2) + ' €/kg';
 
-    // H3: Niedrigpreis-Stunden (heute)
-    document.getElementById('e-h3').textContent = z(aus.nNiedrig / 4, 1) + ' h';
-    document.getElementById('e-h3-unter').textContent = 'Schwelle ' + z(aus.schwelleAnzeige, 1) + ' €/MWh · ' + z(aus.anteilNiedrigAmBezug, 0) + ' % des heute bezogenen Stroms fällt in diese Zeiten';
+        document.getElementById('e-h3').textContent = z(aus.nNiedrig / 4, 1) + ' h';
+        document.getElementById('e-h3-unter').textContent = 'Schwelle ' + z(aus.schwelleAnzeige, 1) + ' €/MWh · ' + z(aus.anteilNiedrigAmBezug, 0) + ' % des heute bezogenen Stroms fällt in diese Zeiten';
 
-    // Fossiler Vergleich (heute)
-    var fossilVorzeichen = aus.kostenluecke >= 0 ? '+ ' : '− ';
-    document.getElementById('e-fossil').textContent = 'Kostenlücke ' + fossilVorzeichen + z(Math.abs(aus.kostenluecke), 2) + ' €/kg';
-    document.getElementById('e-fossil-unter').textContent = 'Grüner Wasserstoff heute ab Anlage ' + z(aus.gestehung, 2) + ' €/kg · fossil (Erdgas, Jahresmittel ' + basis.jahr + ') ' + z(aus.fossil, 2) + ' €/kg · Faktor ' + z(aus.faktor, 1);
+        var fossilVorzeichen = aus.kostenluecke >= 0 ? '+ ' : '− ';
+        document.getElementById('e-fossil').textContent = 'Kostenlücke ' + fossilVorzeichen + z(Math.abs(aus.kostenluecke), 2) + ' €/kg';
+        document.getElementById('e-fossil-unter').textContent = 'Grüner Wasserstoff heute ab Anlage ' + z(aus.gestehung, 2) + ' €/kg · fossil (Erdgas, Jahresmittel ' + basis.jahr + ') ' + z(aus.fossil, 2) + ' €/kg · Faktor ' + z(aus.faktor, 1);
 
-    // Day-Ahead-Preis fuer morgen
-    var tabMorgen = document.getElementById('tab-morgen'), kachelMorgen = document.getElementById('k-morgen-kachel');
-    if (tag.morgen.preise.length >= 4) {
-      var preiseM = tag.morgen.preise, stundeM = tag.morgen.stunde;
-      var ausM = bewerteTagPreis(preiseM, stundeM, diHeute + 1, basis, STANDARD);
-      ansichten.morgen = { preise: preiseM, aktiv: ausM.aktiv, jetztIndex: null, niedrig: ausM.niedrig, schwelleAnzeige: ausM.schwelleAnzeige };
-      tabMorgen.disabled = false;
-      kachelMorgen.classList.remove('unklar'); kachelMorgen.classList.add('morgen');
-      document.getElementById('k-preis-morgen').textContent = z(ausM.preisTP, 2) + ' €/kg';
-      var vorteilM = ausM.ersparnis > 0 ? ('Vorteil ggü. gleichmäßig ' + z(ausM.ersparnis, 2) + ' €/kg · ') : '';
-      document.getElementById('k-preis-morgen-unter').textContent = 'Fixkosten ' + z(basis.fixProKg, 2) + ' €/kg + Stromkosten morgen ' + z(ausM.lauf.energieProKg, 2) + ' €/kg · ' + vorteilM + 'Prognose';
-    } else {
-      tabMorgen.disabled = true;
-      delete ansichten.morgen;
-      kachelMorgen.classList.add('unklar'); kachelMorgen.classList.remove('morgen');
-      document.getElementById('k-preis-morgen').textContent = 'noch unbekannt';
-      document.getElementById('k-preis-morgen-unter').textContent = 'Die Börse veröffentlicht die Preise für morgen meist zwischen 12 und 15 Uhr.';
-      if (document.getElementById('tab-morgen').className === 'aktiv') zeigeAnsicht('heute');
-    }
-    zeigeAnsicht(document.getElementById('tab-morgen').className === 'aktiv' ? 'morgen' : 'heute');
+        var tabMorgen = document.getElementById('tab-morgen'), kachelMorgen = document.getElementById('k-morgen-kachel');
+        if (tagMorgen) {
+          var ausM = bewerteTagPreis(tagMorgen.preise, tagMorgen.stunde, diHeute + 1, basis, STANDARD);
+          ansichten.morgen = { preise: tagMorgen.preise, aktiv: ausM.aktiv, jetztIndex: null, niedrig: ausM.niedrig, schwelleAnzeige: ausM.schwelleAnzeige, quelle: tagMorgen.quelle };
+          tabMorgen.disabled = false;
+          kachelMorgen.classList.remove('unklar'); kachelMorgen.classList.add('morgen');
+          document.getElementById('k-preis-morgen').textContent = z(ausM.preisTP, 2) + ' €/kg';
+          var vorteilM = ausM.ersparnis > 0 ? ('Vorteil ggü. gleichmäßig ' + z(ausM.ersparnis, 2) + ' €/kg · ') : '';
+          document.getElementById('k-preis-morgen-unter').textContent = 'Fixkosten ' + z(basis.fixProKg, 2) + ' €/kg + Stromkosten morgen ' + z(ausM.lauf.energieProKg, 2) + ' €/kg · ' + vorteilM + 'Prognose';
+          var gruenZusatzM = AUFPREISE.map(function (auf) { return auf * (ausM.lauf.Eel + ausM.lauf.Ev) / ausM.lauf.H; });
+          document.getElementById('e-gruenstrom-unter').textContent = 'morgen: + ' + z(gruenZusatzM[0], 2) + ' €/kg bei ' + AUFPREISE[0] + ' €/MWh · + ' + z(gruenZusatzM[1], 2) + ' €/kg bei ' + AUFPREISE[1] + ' €/MWh';
+        } else {
+          tabMorgen.disabled = true;
+          delete ansichten.morgen;
+          kachelMorgen.classList.add('unklar'); kachelMorgen.classList.remove('morgen');
+          document.getElementById('k-preis-morgen').textContent = 'noch unbekannt';
+          document.getElementById('k-preis-morgen-unter').textContent = 'Die Börse veröffentlicht die Preise für morgen meist zwischen 12 und 15 Uhr; die Sammlung läuft mehrmals täglich.';
+          if (document.getElementById('tab-morgen').className === 'aktiv') zeigeAnsicht('heute');
+        }
+        zeigeAnsicht(document.getElementById('tab-morgen').className === 'aktiv' ? 'morgen' : 'heute');
 
-    // Einordnung 1: Vergleich zum Jahresdurchschnitt (Masterarbeit-Daten)
-    var heuteMittelCt = (preise.reduce(function (a, b) { return a + b; }, 0) / n) / 10;
-    var diff = (heuteMittelCt - basis.jahresmittelCt) / basis.jahresmittelCt * 100;
-    var pfeil = diff <= 0 ? '<span class="pfeil runter">▾</span> ' : '<span class="pfeil rauf">▴</span> ';
-    document.getElementById('e-jahresvergleich').innerHTML = pfeil + z(Math.abs(diff), 0) + ' % ' + (diff <= 0 ? 'günstiger' : 'teurer');
-    document.getElementById('e-jahresvergleich-unter').textContent = 'heute ⌀ ' + z(heuteMittelCt, 1) + ' ct/kWh · ' + basis.jahr + ' ⌀ ' + z(basis.jahresmittelCt, 1) + ' ct/kWh';
+        // Einordnung 1: Jahresvergleich
+        var heuteMittelCt = (tagHeute.preise.reduce(function (a, b) { return a + b; }, 0) / n) / 10;
+        var diff = (heuteMittelCt - basis.jahresmittelCt) / basis.jahresmittelCt * 100;
+        var pfeil = diff <= 0 ? '<span class="pfeil runter">▾</span> ' : '<span class="pfeil rauf">▴</span> ';
+        document.getElementById('e-jahresvergleich').innerHTML = pfeil + z(Math.abs(diff), 0) + ' % ' + (diff <= 0 ? 'günstiger' : 'teurer');
+        document.getElementById('e-jahresvergleich-unter').textContent = 'heute ⌀ ' + z(heuteMittelCt, 1) + ' ct/kWh · ' + basis.jahr + ' ⌀ ' + z(basis.jahresmittelCt, 1) + ' ct/kWh';
 
-    // Einordnung 2: eigene Historie (waechst mit der Nutzung, nicht im Testmodus)
-    if (!TESTMODUS) {
-      var heuteDatum = wien(new Date()).datum;
-      var hist = historieAktualisieren(heuteDatum, heuteMittelCt, aus.preisTP, aus.gestehung);
-      if (hist.length < 2) {
-        document.getElementById('e-verlauf').textContent = '1 Tag erfasst';
-        document.getElementById('e-verlauf-unter').textContent = 'Baut sich auf, je länger das Dashboard läuft.';
-        document.getElementById('e-sparkline-box').style.display = 'none';
-      } else {
-        var sortiert = hist.slice().sort(function (a, b) { return a.preis - b.preis; });
-        var rang = sortiert.findIndex(function (e) { return e.datum === heuteDatum; }) + 1;
-        document.getElementById('e-verlauf').textContent = 'Platz ' + rang + ' von ' + hist.length;
-        document.getElementById('e-verlauf-unter').textContent = rang === 1 ? 'der günstigste erfasste Tag' : (rang === hist.length ? 'der teuerste erfasste Tag' : 'vom günstigsten (1) zum teuersten erfassten Tag');
-        document.getElementById('e-sparkline-box').style.display = '';
-        var heuteIdx = hist.findIndex(function (e) { return e.datum === heuteDatum; });
-        zeichneSparkline(document.getElementById('e-sparkline'), hist, heuteIdx, document.getElementById('tooltip-sparkline'));
-      }
-      // Fossil-Chart: Wasserstoffpreis heute (dieselbe Zahl wie die große Kachel) gegen die fossile Linie
-      var mitH2 = hist.filter(function (e) { return e.h2 !== undefined && e.h2 !== null; });
-      if (mitH2.length >= 1) {
-        document.getElementById('e-fossil-box').style.display = '';
-        var idxHeuteF = mitH2.findIndex(function (e) { return e.datum === heuteDatum; });
-        zeichneFossilChart(document.getElementById('e-fossil-chart'), mitH2, idxHeuteF, aus.fossil, document.getElementById('tooltip-fossil'));
-      }
-    } else {
-      document.getElementById('e-verlauf').textContent = '–';
-      document.getElementById('e-verlauf-unter').textContent = 'im Testmodus nicht verfügbar (keine Speicherung)';
-      document.getElementById('e-sparkline-box').style.display = 'none';
-      document.getElementById('e-fossil-box').style.display = 'none';
-    }
+        // Einordnung 2: Verlauf aus ALLEN erfassten Tagen im (geteilten) Archiv neu berechnet.
+        // Dieselbe Berechnung je Tag wird unten auch fuer Heatmap und CSV-Export weiterverwendet
+        // (in hist/histGlobal zwischengespeichert), damit bewerteTagPreis() nicht doppelt laeuft.
+        var hist = preisArchiv.tage.filter(function (t) { return t.n >= 90; }).map(function (t) {
+          var td = tagAusArchiv(preisArchiv, t.datum);
+          var di = tagDesJahres0(new Date(t.datum + 'T12:00:00Z'));
+          var a2 = bewerteTagPreis(td.preise, td.stunde, di, basis, STANDARD);
+          var oekoT = erzeugungFuerTag(erzArchiv, t.datum, td.preise.length, 'oeko');
+          var residT = erzeugungFuerTag(erzArchiv, t.datum, td.preise.length, 'residual');
+          var rrT = residuallastKennzahl(residT, a2.lauf.eGes);
+          return {
+            datum: t.datum, quelle: t.quelle, mittelEurMwh: t.mittelEurMwh, preis: t.mittelEurMwh / 10,
+            h2: a2.preisTP, gestehung: a2.gestehung, td: td, aus: a2, oeko: oekoT, residual: residT,
+            residualAnteil: rrT ? rrT.anteil : null, spalten: spaltenFuerTag(td.preise, td.unix, a2.aktiv)
+          };
+        }).sort(function (a, b) { return a.datum < b.datum ? -1 : 1; });
+        histGlobal = hist;
 
-    // Einordnung 3 + H2: Oekostrom-Anteil und Residuallast-Kennzahl
-    var h2El = document.getElementById('e-h2'), h2UnterEl = document.getElementById('e-h2-unter');
-    if (TESTMODUS) {
-      var r1 = residuallastKennzahl(tag.heute.residual, aus.lauf.eGes);
-      var r2 = residuallastKennzahl(tag.heute.residual, aus.laufGl.eGes);
-      if (r1) {
-        h2El.textContent = z(r1.anteil, 0) + ' %';
-        h2UnterEl.textContent = 'gleichmäßiger Betrieb: ' + z(r2 ? r2.anteil : null, 0) + ' % · ganzer Tag (Testmodus) · über 50 % = systemdienlich';
-      } else { h2El.textContent = 'nicht verfügbar'; h2UnterEl.textContent = 'keine Residuallastdaten für diesen Tag.'; }
-      document.getElementById('e-oekostrom').textContent = 'nicht verfügbar';
-      document.getElementById('e-oekostrom-unter').textContent = 'im Testmodus nicht berechnet (nur live).';
-    } else {
-      ladeErzeugungRoh().then(function (j) {
-        var oeko = serieAusrichten(oekostromAnteilSerie(j), wien(new Date()).datum, n);
+        if (hist.length < 2) {
+          document.getElementById('e-verlauf').textContent = hist.length + ' Tag erfasst';
+          document.getElementById('e-verlauf-unter').textContent = 'Baut sich auf, je mehr Tage die GitHub Action sammelt.';
+          document.getElementById('e-sparkline-box').style.display = 'none';
+        } else {
+          var sortiert = hist.slice().sort(function (a, b) { return a.preis - b.preis; });
+          var rang = sortiert.findIndex(function (e) { return e.datum === heuteDatum; }) + 1;
+          document.getElementById('e-verlauf').textContent = rang > 0 ? ('Platz ' + rang + ' von ' + hist.length) : (hist.length + ' Tage erfasst');
+          document.getElementById('e-verlauf-unter').textContent = rang === 1 ? 'der günstigste erfasste Tag' : (rang === hist.length ? 'der teuerste erfasste Tag' : 'vom günstigsten (1) zum teuersten erfassten Tag');
+          document.getElementById('e-sparkline-box').style.display = '';
+          var heuteIdx = hist.findIndex(function (e) { return e.datum === heuteDatum; });
+          zeichneSparkline(document.getElementById('e-sparkline'), hist, heuteIdx, document.getElementById('tooltip-sparkline'));
+        }
+        if (hist.length >= 1) {
+          document.getElementById('e-fossil-box').style.display = '';
+          var idxHeuteF = hist.findIndex(function (e) { return e.datum === heuteDatum; });
+          zeichneFossilChart(document.getElementById('e-fossil-chart'), hist, idxHeuteF, aus.fossil, document.getElementById('tooltip-fossil'));
+        }
+
+        // Heatmap "Wann die Anlage gelaufen ist": alle erfassten Tage neueste zuerst, newste zuerst.
+        // "Morgen" steckt (sobald abgerufen) bereits als ganz normaler Eintrag in hist -- hier nur als
+        // Prognose kennzeichnen, nicht nochmal eigens berechnen (sonst Dopplung + doppelte Rechnung).
+        heatmapZeilen = hist.slice().reverse().map(function (h) {
+          return { datum: h.datum, istPrognose: h.datum === morgenDatum, quelle: h.quelle, spalten: h.spalten };
+        });
+        zeichneHeatmapAchse(document.getElementById('heatmap-achse'));
+        zeichneHeatmap(document.getElementById('heatmap'), heatmapZeilen, heatmapModus);
+        aktualisiereHeatmapSummary(hist);
+
+        // Einordnung 3 + H2: Oekostrom-Anteil und Residuallast aus erzeugung.json
+        var h2El = document.getElementById('e-h2'), h2UnterEl = document.getElementById('e-h2-unter');
+        var oeko = erzeugungFuerTag(erzArchiv, heuteDatum, n, 'oeko');
         if (oeko) {
           var sumAlle = 0, nAlle = 0, sumAktiv = 0, nAktiv = 0;
           for (var i = 0; i < n; i++) {
@@ -976,37 +1076,49 @@ function aktualisieren() {
           if (nAktiv > 0 && nAlle > 0) {
             document.getElementById('e-oekostrom').textContent = z(100 * sumAktiv / nAktiv, 0) + ' %';
             document.getElementById('e-oekostrom-unter').textContent = 'Tagesdurchschnitt: ' + z(100 * sumAlle / nAlle, 0) + ' % · Wind, Sonne, Wasserkraft, Biomasse (AT)';
-          } else { throw new Error('keine gültigen Ökostrom-Werte'); }
-        } else { throw new Error('keine Ökostrom-Daten für heute'); }
+          } else { document.getElementById('e-oekostrom').textContent = 'nicht verfügbar'; document.getElementById('e-oekostrom-unter').textContent = 'keine gültigen Werte im Archiv.'; }
+        } else { document.getElementById('e-oekostrom').textContent = 'nicht verfügbar'; document.getElementById('e-oekostrom-unter').textContent = 'noch keine Erzeugungsdaten im Archiv für heute.'; }
 
-        var resid = serieAusrichten(residuallastSerie(j), wien(new Date()).datum, n);
+        var resid = erzeugungFuerTag(erzArchiv, heuteDatum, n, 'residual');
         var rr1 = residuallastKennzahl(resid, aus.lauf.eGes);
         var rr2 = residuallastKennzahl(resid, aus.laufGl.eGes);
         if (rr1) {
           var bisUhr = uhrzeitLabel(rr1.nVorhanden - 1, n);
           h2El.textContent = z(rr1.anteil, 0) + ' %';
-          h2UnterEl.textContent = 'gleichmäßiger Betrieb: ' + z(rr2 ? rr2.anteil : null, 0) + ' % · bis ' + bisUhr + ' Uhr · über 50 % = systemdienlich';
-        } else { h2El.textContent = 'nicht verfügbar'; h2UnterEl.textContent = 'Residuallastdaten gerade nicht abrufbar.'; }
-      }).catch(function () {
-        document.getElementById('e-oekostrom').textContent = 'nicht verfügbar';
-        document.getElementById('e-oekostrom-unter').textContent = 'Erzeugungsdaten gerade nicht abrufbar.';
-        h2El.textContent = 'nicht verfügbar';
-        h2UnterEl.textContent = 'Erzeugungsdaten gerade nicht abrufbar.';
+          h2UnterEl.textContent = 'gleichmäßiger Betrieb: ' + z(rr2 ? rr2.anteil : null, 0) + ' % · bis ' + bisUhr + ' Uhr erfasst · über 50 % = systemdienlich';
+        } else { h2El.textContent = 'nicht verfügbar'; h2UnterEl.textContent = 'keine Residuallastdaten im Archiv fuer heute.'; }
+
+        document.getElementById('k-zeit').textContent = (preisArchiv.aktualisiert ? new Date(preisArchiv.aktualisiert).toLocaleString('de-AT') : '–');
+        document.getElementById('k-quellen-liste').textContent = preisArchiv.tage.slice().sort(function (a, b) { return a.datum < b.datum ? 1 : -1; }).map(function (t) { return datumKurz(t.datum) + ': ' + t.quelle; }).join(' · ') || '–';
+        status.textContent = 'Archivstand: ' + n + ' Viertelstunden heute' + (tagMorgen ? ', Preise für morgen bereits verfügbar.' : '.') + ' (' + hist.length + ' Tage insgesamt erfasst)';
       });
-    }
-    document.getElementById('k-zeit').textContent = new Date().toLocaleString('de-AT');
-    status.textContent = TESTMODUS ? ('Testmodus · ' + n + ' Viertelstunden geladen.') : ('Aktuell · ' + n + ' Viertelstunden heute geladen' + (tag.morgen.preise.length >= 4 ? ', Preise für morgen bereits verfügbar.' : '.'));
   }).catch(function (err) {
-    status.className = 'fehler'; status.textContent = 'Fehler beim Laden der Day-Ahead-Preise: ' + err.message + (TESTMODUS ? '' : ' (nächster Versuch in 5 Minuten, oder "Jetzt aktualisieren" klicken)');
+    status.className = 'fehler'; status.textContent = 'Fehler beim Laden: ' + err.message;
   }).then(function () { btn.disabled = false; });
 }
 
 document.getElementById('refresh').onclick = aktualisieren;
 document.getElementById('tab-heute').onclick = function () { zeigeAnsicht('heute'); };
 document.getElementById('tab-morgen').onclick = function () { zeigeAnsicht('morgen'); };
+document.getElementById('heat-tab-betrieb').onclick = function () {
+  heatmapModus = 'betrieb';
+  this.className = 'aktiv'; document.getElementById('heat-tab-preis').className = '';
+  zeichneHeatmap(document.getElementById('heatmap'), heatmapZeilen, heatmapModus);
+};
+document.getElementById('heat-tab-preis').onclick = function () {
+  heatmapModus = 'preis';
+  this.className = 'aktiv'; document.getElementById('heat-tab-betrieb').className = '';
+  zeichneHeatmap(document.getElementById('heatmap'), heatmapZeilen, heatmapModus);
+};
+document.getElementById('csv-tage').onclick = function () { ladeCsvHerunter(erzeugeCsvTage(), 'h2-preis-archiv_tage_' + wien(new Date()).datum + '.csv'); };
+document.getElementById('csv-viertelstunden').onclick = function () { ladeCsvHerunter(erzeugeCsvViertelstunden(), 'h2-preis-archiv_viertelstunden_' + wien(new Date()).datum + '.csv'); };
+if (archivPfad() !== 'preishistorie.json') {
+  var tb = document.getElementById('testbanner');
+  tb.style.display = ''; tb.textContent = 'TESTMODUS – lädt Preisarchiv von "' + archivPfad() + '" statt preishistorie.json';
+}
 uhrAktualisieren(); setInterval(uhrAktualisieren, 15000);
 aktualisieren();
-if (!TESTMODUS) setInterval(aktualisieren, 5 * 60 * 1000);
+setInterval(aktualisieren, 15 * 60 * 1000);
 </script>
 </body>
 </html>
