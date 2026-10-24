@@ -1,5 +1,5 @@
 {
-  "aktualisiert": "2026-10-23T21:23:13.1583800Z",
+  "aktualisiert": "2026-10-24T04:30:53.8546697Z",
   "quelle": "Energy-Charts (Fraunhofer ISE) public_power, Gebotszone AT",
   "tage": [
     {
@@ -6389,6 +6389,102 @@
           "unix": 1792782900,
           "oeko": 0.2576,
           "residual": 4070.8
+        }
+      ]
+    },
+    {
+      "datum": "2026-10-24",
+      "n": 18,
+      "werte": [
+        {
+          "unix": 1792792800,
+          "oeko": 0.1924,
+          "residual": 4631.2
+        },
+        {
+          "unix": 1792793700,
+          "oeko": 0.1759,
+          "residual": 4766.8
+        },
+        {
+          "unix": 1792794600,
+          "oeko": 0.1688,
+          "residual": 4816.4
+        },
+        {
+          "unix": 1792795500,
+          "oeko": 0.1639,
+          "residual": 4834.4
+        },
+        {
+          "unix": 1792796400,
+          "oeko": 0.1553,
+          "residual": 4762.0
+        },
+        {
+          "unix": 1792797300,
+          "oeko": 0.1528,
+          "residual": 4713.6
+        },
+        {
+          "unix": 1792798200,
+          "oeko": 0.1555,
+          "residual": 4642.8
+        },
+        {
+          "unix": 1792799100,
+          "oeko": 0.1488,
+          "residual": 4736.4
+        },
+        {
+          "unix": 1792800000,
+          "oeko": 0.1354,
+          "residual": 4917.6
+        },
+        {
+          "unix": 1792800900,
+          "oeko": 0.1313,
+          "residual": 4910.4
+        },
+        {
+          "unix": 1792801800,
+          "oeko": 0.1298,
+          "residual": 4895.6
+        },
+        {
+          "unix": 1792802700,
+          "oeko": 0.1291,
+          "residual": 4944.8
+        },
+        {
+          "unix": 1792803600,
+          "oeko": 0.1244,
+          "residual": 4986.8
+        },
+        {
+          "unix": 1792804500,
+          "oeko": 0.1228,
+          "residual": 4985.2
+        },
+        {
+          "unix": 1792805400,
+          "oeko": 0.1288,
+          "residual": 4979.6
+        },
+        {
+          "unix": 1792806300,
+          "oeko": 0.129,
+          "residual": 4976.0
+        },
+        {
+          "unix": 1792807200,
+          "oeko": 0.1314,
+          "residual": 4974.0
+        },
+        {
+          "unix": 1792808100,
+          "oeko": 0.1307,
+          "residual": 5008.8
         }
       ]
     }
