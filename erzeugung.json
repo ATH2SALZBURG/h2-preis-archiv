@@ -1,5 +1,5 @@
 {
-  "aktualisiert": "2026-11-18T20:27:31.8118726Z",
+  "aktualisiert": "2026-11-19T02:32:36.3616092Z",
   "quelle": "Energy-Charts (Fraunhofer ISE) public_power, Gebotszone AT",
   "tage": [
     {
@@ -16300,6 +16300,37 @@
           "unix": 1795023000,
           "oeko": 0.1794,
           "residual": 7027.2
+        }
+      ]
+    },
+    {
+      "datum": "2026-11-19",
+      "n": 5,
+      "werte": [
+        {
+          "unix": 1795042800,
+          "oeko": 0.2125,
+          "residual": 4192.8
+        },
+        {
+          "unix": 1795043700,
+          "oeko": 0.2134,
+          "residual": 4166.4
+        },
+        {
+          "unix": 1795044600,
+          "oeko": 0.2181,
+          "residual": 3985.6
+        },
+        {
+          "unix": 1795045500,
+          "oeko": 0.2271,
+          "residual": 3834.8
+        },
+        {
+          "unix": 1795046400,
+          "oeko": 0.2165,
+          "residual": 3915.2
         }
       ]
     }
